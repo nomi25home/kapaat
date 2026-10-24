@@ -193,3 +193,109 @@ def test_backup_retention_prunes(client, tmp_path):
         assert len(body["pruned"]) == 5
     finally:
         app_module.Path = monkeypatch_target
+
+
+def _reload_service_auth(app_module, key, scopes):
+    """Set SERVICE_API_KEY/SCOPES env and reload app so module-load reads apply."""
+    import importlib
+    import os
+
+    if key is None:
+        os.environ.pop("SERVICE_API_KEY", None)
+    else:
+        os.environ["SERVICE_API_KEY"] = key
+    os.environ["SERVICE_API_SCOPES"] = scopes
+    importlib.reload(app_module)
+    return app_module
+
+
+def test_service_api_key_off_when_unset():
+    """With SERVICE_API_KEY unset, a bogus Bearer header is ignored — no lockout."""
+    from fastapi.testclient import TestClient
+
+    import app as app_module
+
+    assert not app_module.SERVICE_API_KEY
+    with TestClient(app_module.app) as c:
+        r = c.get("/api/items", headers={"Authorization": "Bearer whatever"})
+        assert r.status_code == 200
+
+
+def test_service_api_key_read_scope():
+    """Service API key with 'read' scope can access GET endpoints."""
+    from fastapi.testclient import TestClient
+
+    import app as app_module
+
+    _reload_service_auth(app_module, "read-key", "read")
+    try:
+        with TestClient(app_module.app) as c:
+            # Invalid key → 403
+            r = c.get("/api/items", headers={"Authorization": "Bearer wrong-key"})
+            assert r.status_code == 403
+
+            # Valid key with read scope → 200
+            r = c.get("/api/items", headers={"Authorization": "Bearer read-key"})
+            assert r.status_code == 200
+    finally:
+        _reload_service_auth(app_module, None, "read,write")
+
+
+def test_service_api_key_write_scope():
+    """Service API key needs 'write' scope for mutating endpoints."""
+    from fastapi.testclient import TestClient
+
+    import app as app_module
+
+    _reload_service_auth(app_module, "write-key", "read,write")
+    try:
+        with TestClient(app_module.app) as c:
+            # Valid key with write scope → allowed
+            r = c.post(
+                "/api/tag-colors",
+                json={"tag": "test", "hex": "#ff0000"},
+                headers={"Authorization": "Bearer write-key"},
+            )
+            assert r.status_code == 200
+
+            # Key with only 'read' scope → 403 on write
+            _reload_service_auth(app_module, "read-only-key", "read")
+            with TestClient(app_module.app) as c2:
+                r = c2.post(
+                    "/api/tag-colors",
+                    json={"tag": "test", "hex": "#ff0000"},
+                    headers={"Authorization": "Bearer read-only-key"},
+                )
+                assert r.status_code == 403
+    finally:
+        _reload_service_auth(app_module, None, "read,write")
+
+
+def test_service_api_key_admin_scope():
+    """Service API key with 'admin' scope can access admin endpoints."""
+    from fastapi.testclient import TestClient
+
+    import app as app_module
+
+    _reload_service_auth(app_module, "admin-key", "read,write,admin")
+    try:
+        with TestClient(app_module.app) as c:
+            r = c.get("/api/items", headers={"Authorization": "Bearer admin-key"})
+            assert r.status_code == 200
+    finally:
+        _reload_service_auth(app_module, None, "read,write")
+
+
+def test_service_api_key_x_api_key_header():
+    """Service API key can also be passed via X-API-Key header."""
+    from fastapi.testclient import TestClient
+
+    import app as app_module
+
+    _reload_service_auth(app_module, "header-key", "read")
+    try:
+        with TestClient(app_module.app) as c:
+            r = c.get("/api/items", headers={"X-API-Key": "header-key"})
+            assert r.status_code == 200
+    finally:
+        _reload_service_auth(app_module, None, "read,write")
