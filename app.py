@@ -44,7 +44,7 @@ _attempts: dict[str, dict] = {}
 app = FastAPI(title=os.environ.get("APP_TITLE", "Kapaat"))
 
 # Application version - defaults to the latest released version.
-VERSION = os.getenv("APP_VERSION", "1.2.3")
+VERSION = os.getenv("APP_VERSION", "1.2.5")
 
 AUTH_SECRET_KEY = os.environ.get("AUTH_SECRET_KEY", "change-me-in-production")
 
@@ -116,6 +116,11 @@ BLOCKED_EMAILS = os.environ.get("BLOCKED_EMAILS", "").strip()
 ADMIN_GROUP = os.environ.get("ADMIN_GROUP", "admins")
 N8N_WEBHOOK_SECRET = os.environ.get("N8N_WEBHOOK_SECRET", "").strip()
 SERVICE_USER_SUB = os.environ.get("SERVICE_USER_SUB", "service-user")
+# Service API key for programmatic access (v1.2.5) — set in .env to enable
+SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "").strip()
+# Service API key scopes — comma-separated list of allowed scopes
+# Valid scopes: "read", "write", "admin"
+SERVICE_API_SCOPES = [s.strip() for s in os.environ.get("SERVICE_API_SCOPES", "read,write").split(",") if s.strip()]
 
 if DB_ENCRYPTION_KEY:
     try:
@@ -179,7 +184,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method.upper()
 
-        if method in _CSRF_SAFE_METHODS or path in _CSRF_EXEMPT_PATHS:
+        if method in _CSRF_SAFE_METHODS or path in _CSRF_EXEMPT_PATHS or path.startswith("/api/"):
             return await call_next(request)
 
         # State-changing request: require a valid CSRF token.
@@ -484,6 +489,107 @@ def require_admin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="admin required")
 
 
+# ---- Service API Key Auth (v1.2.5) ----
+#
+# When SERVICE_API_KEY is set in the environment, requests can authenticate
+# via the `Authorization: Bearer <key>` header or `X-API-Key` header.
+# The key is validated against the configured SERVICE_API_KEY.
+# Scope-based access control: the token must have the required scope.
+# Valid scopes: "read", "write", "admin"
+#
+# This enables programmatic access for n8n, CI, and scripts without user sessions.
+
+
+def _validate_service_api_key(request: Request) -> dict | None:
+    """Validate the service API key from Authorization or X-API-Key header.
+    Returns a dict with 'scopes' and 'sub' if valid, None if not present/invalid.
+    """
+    if not SERVICE_API_KEY:
+        return None
+
+    # Check Authorization: Bearer <key> header
+    auth_header = request.headers.get("Authorization", "")
+    api_key = ""
+    if auth_header.startswith("Bearer "):
+        api_key = auth_header[7:].strip()
+
+    # Fallback to X-API-Key header
+    if not api_key:
+        api_key = request.headers.get("X-API-Key", "").strip()
+
+    if not api_key:
+        return None
+
+    # Constant-time comparison
+    import hmac
+
+    if not hmac.compare_digest(api_key, SERVICE_API_KEY):
+        return None
+
+    # Valid key — return service user info with scopes
+    return {
+        "sub": SERVICE_USER_SUB,
+        "scopes": SERVICE_API_SCOPES,
+        "name": SERVICE_USER_SUB,
+    }
+
+
+def require_scope(request: Request, required_scope: str) -> None:
+    """Raise HTTPException if the request doesn't have the required scope.
+    Works with both session-based auth (admin) and service API key auth.
+    If SERVICE_API_KEY is not configured, only admin sessions can access.
+    """
+    # Check service API key first — only if SERVICE_API_KEY is configured
+    if SERVICE_API_KEY:
+        service_user = _validate_service_api_key(request)
+        if service_user:
+            if required_scope not in service_user["scopes"]:
+                raise HTTPException(
+                    status_code=403, detail=f"scope '{required_scope}' required (have: {service_user['scopes']})"
+                )
+            # Attach service user info to request for audit logging
+            request.state.service_user = service_user
+            return
+
+    # Fall back to session-based admin check
+    require_admin(request)
+    # Mark as admin-scoped for audit
+    request.state.service_user = {"sub": get_actor(request), "scopes": ["admin"]}
+
+
+def require_read(request: Request) -> None:
+    """Require 'read' scope (service API) or admin session.
+    If SERVICE_API_KEY is not configured, allows unrestricted access (backward compat).
+    """
+    if SERVICE_API_KEY:
+        require_scope(request, "read")
+
+
+def require_write(request: Request) -> None:
+    """Require 'write' scope (service API) or admin session.
+    If SERVICE_API_KEY is not configured, falls back to admin session check.
+    """
+    if SERVICE_API_KEY:
+        require_scope(request, "write")
+    else:
+        require_admin(request)
+
+
+def get_actor(request: Request | None = None) -> str:
+    """Return the current user's identity for audit logging.
+    Falls back to 'anonymous' when no session or OIDC disabled.
+    """
+    if request is None:
+        return "anonymous"
+    # Check service user first
+    if hasattr(request.state, "service_user"):
+        return request.state.service_user.get("sub", "service-user")
+    user = request.session.get("user")
+    if not user:
+        return "anonymous"
+    return user.get("name") or user.get("email") or user.get("sub") or "anonymous"
+
+
 def log_audit(
     conn: sqlite3.Connection, request: Request | None, action: str, item_id: int | None = None, details: str = ""
 ) -> None:
@@ -582,6 +688,16 @@ def _migrate_v3(conn: sqlite3.Connection):
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
     """)
+    # Add last_synced_at columns to existing tables (idempotent)
+    for stmt in [
+        "ALTER TABLE bins ADD COLUMN last_synced_at TEXT DEFAULT (datetime('now'))",
+        "ALTER TABLE items ADD COLUMN last_synced_at TEXT DEFAULT (datetime('now'))",
+    ]:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    conn.commit()
 
 
 def init_db():
@@ -729,7 +845,7 @@ async def get_tag_colors():
 
 @app.post("/api/tag-colors")
 async def set_tag_color(request: Request):
-    require_admin(request)
+    require_write(request)
     data = await request.json()
     tag = str(data.get("tag", "")).strip().lower()
     hex_val = str(data.get("hex", "")).strip()
@@ -746,7 +862,8 @@ async def set_tag_color(request: Request):
 
 
 @app.get("/api/bins")
-async def api_get_bins():
+async def api_get_bins(request: Request):
+    require_read(request)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM bins ORDER BY bin_id")
@@ -761,7 +878,8 @@ async def api_get_bins():
 
 
 @app.get("/api/items")
-async def api_get_items(search: str = ""):
+async def api_get_items(request: Request, search: str = ""):
+    require_read(request)
     conn = get_db()
     cursor = conn.cursor()
     if search:
@@ -920,32 +1038,48 @@ async def dashboard(request: Request, search: str = ""):
             "locale_json": json.dumps(_LOCALE, ensure_ascii=False),
             "user": request.session.get("user"),
             "oidc_enabled": bool(AUTHENTIK_CLIENT_ID),
+            "L": {
+                "bulk": {
+                    "import_csv_title": "Bulk Import CSV",
+                    "import_csv_desc": "Upload a CSV file to add multiple items at once. Required columns: bin_id, name, category, quantity.",
+                    "apply": "Apply",
+                    "no_tags": "No tags found",
+                },
+                "modal": {
+                    "cancel": "Cancel",
+                    "register": "Register",
+                }
+            },
         },
     )
 
 
-@app.get("/bin/{bin_id}", response_class=HTMLResponse)
-async def view_single_bin(request: Request, bin_id: str):
-    """Deep-link endpoint hit when scanning physical box labels with phone."""
+@app.get("/scan/{bin_id}", response_class=HTMLResponse)
+async def scan_bin(request: Request, bin_id: str):
+    """Mobile-optimized read-only view for a bin."""
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM bins WHERE bin_id = ?", (bin_id,))
     target_bin = cursor.fetchone()
+    if not target_bin:
+        conn.close()
+        return HTMLResponse("Bin not found", status_code=404)
 
     cursor.execute("SELECT * FROM items WHERE bin_id = ?", (bin_id,))
     items = cursor.fetchall()
     conn.close()
 
+    deep_link = f"{BASE_URL}/bin/{urllib.parse.quote(bin_id)}"
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(deep_link, safe='')}"
+
     return templates.TemplateResponse(
-        "index.html",
+        "scan.html",
         {
             "request": request,
-            "bins": [],
+            "bin": target_bin,
             "items": items,
-            "search": "",
-            "single_bin": target_bin,
+            "qr_url": qr_url,
             "t": _LOCALE,
-            "locale_json": json.dumps(_LOCALE, ensure_ascii=False),
         },
     )
 
@@ -1278,6 +1412,13 @@ async def sync_row_from_sheet(request: Request):
             )
             conn.commit()
 
+        # Set last_synced_at on update
+        conn.execute(
+            "UPDATE items SET last_synced_at = datetime('now') WHERE item_id = ?",
+            (item_id_int,),
+        )
+        conn.commit()
+
         # Conflict detection — if sheet row differs from app row, log to sync_conflicts
         existing = cursor.execute("SELECT quantity, category FROM items WHERE item_id = ?", (item_id_int,)).fetchone()
         if existing and existing != (quantity, category):
@@ -1333,6 +1474,13 @@ async def sync_row_from_sheet(request: Request):
         (bin_id, name, category, quantity),
     )
     new_item_id = cursor.lastrowid
+    conn.commit()
+
+    # Set last_synced_at on create
+    conn.execute(
+        "UPDATE items SET last_synced_at = datetime('now') WHERE item_id = ?",
+        (new_item_id,),
+    )
     conn.commit()
 
     # Always log sync to audit_log
@@ -1536,3 +1684,43 @@ async def export_data(file_type: str):
     else:
         df.to_excel(filepath, index=False)
     return FileResponse(filepath, filename=os.path.basename(filepath))
+
+
+@app.post("/api/import-csv")
+async def import_csv(request: Request, file: UploadFile = File(...)):
+    require_admin(request)
+    content = await file.read()
+    df = pd.read_csv(io.BytesIO(content))
+    conn = get_db()
+    try:
+        conn.execute("BEGIN")
+        imported = 0
+        for _, row in df.iterrows():
+            bin_id = str(row.get("bin_id", "")).strip()
+            name = str(row.get("name", "")).strip()
+            category = str(row.get("category", "")).strip()
+            try:
+                quantity = int(float(str(row.get("quantity", 1))))
+            except (ValueError, TypeError):
+                continue
+            if not bin_id or not name or not category:
+                continue
+            # Ensure bin exists
+            existing_bin = conn.execute("SELECT 1 FROM bins WHERE bin_id = ?", (bin_id,)).fetchone()
+            if not existing_bin:
+                conn.execute(
+                    "INSERT INTO bins (bin_id, zone, shelf_number, color_code) VALUES (?, ?, ?, ?)",
+                    (bin_id, "Unknown", "", "#000000"),
+                )
+            conn.execute(
+                "INSERT INTO items (bin_id, name, category, quantity) VALUES (?, ?, ?, ?)",
+                (bin_id, name, category, quantity),
+            )
+            imported += 1
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return JSONResponse({"error": str(e)}, status_code=400)
+    finally:
+        conn.close()
+    return JSONResponse({"ok": True, "imported": imported})
