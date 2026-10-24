@@ -1,0 +1,111 @@
+{
+  "name": "Kapaat bin sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kapaat-sync",
+        "responseMode": "onReceived",
+        "responseBody": "{\"status\":\"ok\"}",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "documentId": "",
+        "sheetName": "Bins",
+        "range": "A1",
+        "exportFormat": "CSV",
+        "action": "append"
+      },
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parametersExtra": {
+        "sheetId": ""
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "boolean": [
+            {
+              "name": "resolved",
+              "value": "0"
+            }
+          ],
+          "number": [
+            {
+              "name": "quantity",
+              "value": "={{$json[\"quantity\"]}}"
+            },
+            {
+              "name": "item_id",
+              "value": "={{$json[\"item_id\"]}}"
+            }
+          ],
+          "string": [
+            {
+              "name": "bin_id",
+              "value": "={{$json[\"bin_id\"]}}"
+            },
+            {
+              "name": "name",
+              "value": "={{$json[\"name\"]}}"
+            },
+            {
+              "name": "category",
+              "value": "={{$json[\"category\"]}}"
+            },
+            {
+              "name": "zone",
+              "value": "={{$json[\"zone\"]}}"
+            },
+            {
+              "name": "shelf",
+              "value": "={{$json[\"shelf\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [375, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 3600
+  }
+}
