@@ -1103,24 +1103,24 @@ function printLabel(binId, qrUrl, size) {
   size = size || "1.5x1.5";
   const [w, h] = size.split("x").map(Number);
   const wPx = w * 96, hPx = h * 96;
-  // Scale everything proportionally to label size (base 1.5" = 144px)
-  const scale = Math.min(w, h) / 1.5;
-  const qrSize = Math.round(64 * scale);       // base 64px QR (smaller to fit)
-  const fontSize = Math.round(16 * scale);     // base 16px font
-  const padding = Math.round(8 * scale);       // base 8px padding
-  const gap = Math.round(6 * scale);           // base 6px gap
-  const brandSize = Math.round(6 * scale);     // base 6px "Kapaat"
+  // QR code fills the entire label (1.5" = 144px at 96dpi)
+  const qrSize = Math.round(w * 96);   // full width in pixels
+  const fontSize = Math.round(14 * Math.min(w, h) / 1.5);
+  const brandSize = Math.round(6 * Math.min(w, h) / 1.5);
   const win = window.open("", "_blank", "width=420,height=480");
   win.document.write(`<!doctype html><html><head><title>${binId}</title><style>
     @page { margin: 0; size: ${w}in ${h}in; }
     @media print { .print-btn { display: none !important; } body { margin: 0; } }
   </style></head><body style="margin:0;display:flex;align-items:center;justify-content:center;width:${wPx}px;height:${hPx}px;background:#fff">
-    <div style="text-align:center;font-family:sans-serif;padding:${padding}px;border:2px dashed #000;border-radius:6px;box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:${gap}px">
-      <div style="font-size:${brandSize}px;letter-spacing:.15em;text-transform:uppercase;color:#666;white-space:nowrap">Kapaat</div>
-      <img src="${qrUrl}" style="width:${qrSize}px;height:${qrSize}px;flex-shrink:0">
-      <div style="font-size:${fontSize}px;font-weight:700;letter-spacing:.05em;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${binId}</div>
-      <button class="print-btn" onclick="window.print();window.close()" style="padding:6px 14px;font-size:12px;cursor:pointer;border-radius:4px;border:1px solid #ccc;margin-top:auto">Print Now</button>
-    </div></body></html>`);
+    <div style="position:relative;width:${qrSize}px;height:${qrSize}px">
+      <img src="${qrUrl}" style="width:100%;height:100%;display:block">
+      <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;pointer-events:none">
+        <div style="font-size:${brandSize}px;letter-spacing:.15em;text-transform:uppercase;color:#666;white-space:nowrap;text-shadow:0 0 3px #fff">Kapaat</div>
+        <div style="font-size:${fontSize}px;font-weight:700;letter-spacing:.05em;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-shadow:0 0 3px #fff">${binId}</div>
+      </div>
+    </div>
+    <button class="print-btn" onclick="window.print();window.close()" style="position:fixed;bottom:8px;right:8px;padding:6px 14px;font-size:12px;cursor:pointer;border-radius:4px;border:1px solid #ccc;z-index:10">Print Now</button>
+  </body></html>`);
   win.document.close();
 }
 
