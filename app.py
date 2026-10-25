@@ -1048,7 +1048,7 @@ async def dashboard(request: Request, search: str = ""):
                 "modal": {
                     "cancel": "Cancel",
                     "register": "Register",
-                }
+                },
             },
         },
     )
