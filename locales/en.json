@@ -30,6 +30,8 @@
     "print_label_title": "Print Label",
     "print_label_desc": "Choose a label size. The label is printed at the selected dimensions.",
     "size_label": "Label Size",
+    "paper_size_label": "Paper Size",
+    "labels_per_page_label": "Labels per Page",
     "print_now": "Print"
   },
   "item": {

@@ -1099,27 +1099,77 @@ async function uploadPhoto(type, id, file) {
   } catch (e) { toast("Upload failed: " + e.message, true); }
 }
 
-function printLabel(binId, qrUrl, size) {
-  size = size || "1.5x1.5";
-  const [w, h] = size.split("x").map(Number);
-  const wPx = w * 96, hPx = h * 96;
-  // QR code fills the entire label (1.5" = 144px at 96dpi)
-  const qrSize = Math.round(w * 96);   // full width in pixels
-  const fontSize = Math.round(14 * Math.min(w, h) / 1.5);
-  const brandSize = Math.round(6 * Math.min(w, h) / 1.5);
-  const win = window.open("", "_blank", "width=420,height=480");
-  win.document.write(`<!doctype html><html><head><title>${binId}</title><style>
-    @page { margin: 0; size: ${w}in ${h}in; }
-    @media print { .print-btn { display: none !important; } body { margin: 0; } }
-  </style></head><body style="margin:0;display:flex;align-items:center;justify-content:center;width:${wPx}px;height:${hPx}px;background:#fff">
-    <div style="position:relative;width:${qrSize}px;height:${qrSize}px">
-      <img src="${qrUrl}" style="width:100%;height:100%;display:block">
-      <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;pointer-events:none">
-        <div style="font-size:${brandSize}px;letter-spacing:.15em;text-transform:uppercase;color:#666;white-space:nowrap;text-shadow:0 0 3px #fff">Kapaat</div>
-        <div style="font-size:${fontSize}px;font-weight:700;letter-spacing:.05em;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-shadow:0 0 3px #fff">${binId}</div>
+function printLabel(binId, qrUrl, size, options = {}) {
+  const {
+    paperSize = "none",      // "none" | "A4" | "Letter"
+    labelsPerPage = 1,       // number of labels to print
+    labelSize = size         // individual label size (e.g., "1.5x1.5")
+  } = options;
+
+  const [labelW, labelH] = labelSize.split("x").map(Number);
+  const labelWpx = labelW * 96, labelHpx = labelH * 96;
+  const qrSize = Math.round(labelW * 96);
+  const fontSize = Math.round(14 * Math.min(labelW, labelH) / 1.5);
+  const brandSize = Math.round(6 * Math.min(labelW, labelH) / 1.5);
+
+  // Paper dimensions in inches
+  const paperDims = {
+    A4:   [8.27, 11.69],
+    Letter: [8.5,  11.0],
+    none: [labelW, labelH]  // single label, no paper
+  };
+  const [paperW, paperH] = paperDims[paperSize] || paperDims.none;
+  const paperWpx = paperW * 96, paperHpx = paperH * 96;
+
+  // Calculate grid layout for multiple labels
+  let cols, rows;
+  if (paperSize === "none" || labelsPerPage <= 1) {
+    cols = 1; rows = 1;
+  } else {
+    // Fit as many as possible in a grid
+    cols = Math.floor(paperW / labelW);
+    rows = Math.floor(paperH / labelH);
+    const maxFit = cols * rows;
+    if (labelsPerPage > maxFit) labelsPerPage = maxFit;
+    // Adjust grid to fit exactly labelsPerPage
+    cols = Math.ceil(Math.sqrt(labelsPerPage * (paperW / paperH)));
+    rows = Math.ceil(labelsPerPage / cols);
+  }
+
+  const totalLabels = paperSize === "none" ? 1 : Math.min(labelsPerPage, cols * rows);
+
+  const win = window.open("", "_blank", `width=${Math.min(paperWpx + 40, 1200)},height=${Math.min(paperHpx + 40, 900)}`);
+
+  // Build label HTML for each position
+  const labelsHtml = [];
+  for (let i = 0; i < totalLabels; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const left = col * labelWpx;
+    const top = row * labelHpx;
+    labelsHtml.push(`
+      <div style="position:absolute;left:${left}px;top:${top}px;width:${labelWpx}px;height:${labelHpx}px;page-break-inside:avoid">
+        <div style="position:relative;width:${qrSize}px;height:${qrSize}px">
+          <img src="${qrUrl}" style="width:100%;height:100%;display:block">
+          <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;pointer-events:none">
+            <div style="font-size:${brandSize}px;letter-spacing:.15em;text-transform:uppercase;color:#666;white-space:nowrap;text-shadow:0 0 3px #fff">Kapaat</div>
+            <div style="font-size:${fontSize}px;font-weight:700;letter-spacing:.05em;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-shadow:0 0 3px #fff">${binId}</div>
+          </div>
+        </div>
       </div>
-    </div>
+    `);
+  }
+
+  const printBtn = paperSize === "none" ? `
     <button class="print-btn" onclick="window.print();window.close()" style="position:fixed;bottom:8px;right:8px;padding:6px 14px;font-size:12px;cursor:pointer;border-radius:4px;border:1px solid #ccc;z-index:10">Print Now</button>
+  ` : '';
+
+  win.document.write(`<!doctype html><html><head><title>${binId} × ${totalLabels}</title><style>
+    @page { margin: 0; size: ${paperW}in ${paperH}in; }
+    @media print { .print-btn { display: none !important; } body { margin: 0; } }
+  </style></head><body style="margin:0;width:${paperWpx}px;height:${paperHpx}px;background:#fff;position:relative">
+    ${labelsHtml.join('')}
+    ${printBtn}
   </body></html>`);
   win.document.close();
 }
@@ -1145,6 +1195,18 @@ function openPrintSizePicker(binId, qrUrl) {
           <div><label class="f">Height (in)</label><input class="in" id="printH" type="number" min="0.5" step="0.25" value="1.5"></div>
         </div>
       </div>
+      <div style="margin-top:12px"><label class="f">${L.bin.paper_size_label || 'Paper Size'}</label>
+        <select class="in" id="printPaper" style="height:36px">
+          <option value="none">Single Label (no paper)</option>
+          <option value="A4">A4 (210 × 297 mm)</option>
+          <option value="Letter">Letter (8.5" × 11")</option>
+        </select>
+      </div>
+      <div id="labelsPerPageRow" style="display:none;margin-top:8px">
+        <label class="f">${L.bin.labels_per_page_label || 'Labels per page'}</label>
+        <input class="in" id="printCount" type="number" min="1" max="100" value="1" style="width:80px">
+        <span class="muted mono" id="printFitHint" style="margin-left:8px"></span>
+      </div>
       <div class="err" id="printErr"></div>
     </div>
     <div class="mf">
@@ -1154,6 +1216,28 @@ function openPrintSizePicker(binId, qrUrl) {
   $("printSize").addEventListener("change", e => {
     $("customSizeRow").style.display = e.target.value === "custom" ? "block" : "none";
   });
+  $("printPaper").addEventListener("change", e => {
+    const show = e.target.value !== "none";
+    $("labelsPerPageRow").style.display = show ? "block" : "none";
+    if (show) updatePrintFitHint();
+  });
+  $("printCount").addEventListener("input", updatePrintFitHint);
+  function updatePrintFitHint() {
+    const paper = $("printPaper").value;
+    const size = ($("printSize").value === "custom" ? ($("printW").value + "x" + $("printH").value) : $("printSize").value);
+    const [lw, lh] = size.split("x").map(Number);
+    const paperDims = { A4: [8.27, 11.69], Letter: [8.5, 11.0] };
+    if (paperDims[paper]) {
+      const [pw, ph] = paperDims[paper];
+      const cols = Math.floor(pw / lw);
+      const rows = Math.floor(ph / lh);
+      const max = cols * rows;
+      const count = parseInt($("printCount").value) || 1;
+      $("printFitHint").textContent = `Max fit: ${max} (${cols}×${rows})${count > max ? ' — will be capped' : ''}`;
+    } else {
+      $("printFitHint").textContent = '';
+    }
+  }
 }
 
 function applyPrintSize(binId, qrUrl) {
@@ -1166,8 +1250,10 @@ function applyPrintSize(binId, qrUrl) {
   } else {
     size = sel;
   }
+  const paper = $("printPaper").value;
+  const count = paper !== "none" ? parseInt($("printCount").value) || 1 : 1;
   closeModal();
-  printLabel(binId, qrUrl, size);
+  printLabel(binId, qrUrl, size, { paperSize: paper, labelsPerPage: count, labelSize: size });
 }
 
 document.addEventListener("keydown", e => {
