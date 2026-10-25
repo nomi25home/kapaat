@@ -1103,8 +1103,8 @@ function printLabel(binId, qrUrl, size) {
   size = size || "1.5x1.5";
   const [w, h] = size.split("x").map(Number);
   const wPx = w * 96, hPx = h * 96;
-  const w = window.open("", "_blank", "width=420,height=480");
-  w.document.write(`<!doctype html><html><head><title>${binId}</title><style>
+  const win = window.open("", "_blank", "width=420,height=480");
+  win.document.write(`<!doctype html><html><head><title>${binId}</title><style>
     @page { margin: 0; size: ${w}in ${h}in; }
     @media print { .print-btn { display: none !important; } }
   </style></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff">
@@ -1114,7 +1114,7 @@ function printLabel(binId, qrUrl, size) {
       <div style="font-size:28px;font-weight:700;letter-spacing:.1em;margin:10px 0;font-family:monospace">${binId}</div>
       <button class="print-btn" onclick="window.print();window.close()" style="padding:8px 20px;font-size:14px;cursor:pointer;border-radius:4px;border:1px solid #ccc">Print Now</button>
     </div></body></html>`);
-  w.document.close();
+  win.document.close();
 }
 
 function openPrintSizePicker(binId, qrUrl) {
