@@ -1142,7 +1142,7 @@ function openPrintSizePicker(binId, qrUrl) {
     </div>
     <div class="mf">
       <button class="btn" onclick="closeModal()">${L.modal.cancel}</button>
-      <button class="btn primary" onclick="applyPrintSize('${esc(bin.bin_id)}', '${esc(bin.qr_url)}')"><span class="ms">print</span>${L.bin.print_now}</button>
+      <button class="btn primary" onclick="applyPrintSize('${esc(binId)}', '${esc(qrUrl)}')"><span class="ms">print</span>${L.bin.print_now}</button>
     </div>`);
   $("printSize").addEventListener("change", e => {
     $("customSizeRow").style.display = e.target.value === "custom" ? "block" : "none";
