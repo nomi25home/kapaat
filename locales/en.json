@@ -26,7 +26,11 @@
     "edit_btn": "Edit box",
     "delete_btn": "Delete box",
     "pack_item_here": "Pack Item Here",
-    "add_photo": "Add photo"
+    "add_photo": "Add photo",
+    "print_label_title": "Print Label",
+    "print_label_desc": "Choose a label size. The label is printed at the selected dimensions.",
+    "size_label": "Label Size",
+    "print_now": "Print"
   },
   "item": {
     "edit_btn": "Edit item",

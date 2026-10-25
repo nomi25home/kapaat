@@ -214,6 +214,7 @@ select.in { cursor: pointer; }
   <div class="spacer"></div>
   <button class="btn primary" onclick="openAddBin()"><span class="ms">add</span><span class="hide-sm">{{ t.nav.add_box }}</span></button>
   <button class="btn" onclick="openAddItem()"><span class="ms">inventory</span><span class="hide-sm">{{ t.nav.pack_item }}</span></button>
+  <button class="icon-btn" title="{{ L.bulk.import_csv_title }}" onclick="openImportCSV()"><span class="ms">upload</span></button>
   <button class="icon-btn" title="{{ t.nav.export_csv }}" onclick="window.location.href='/export/csv'"><span class="ms">download</span></button>
   <button class="icon-btn" title="{{ t.nav.backup }}" onclick="window.location.href='/api/backup'"><span class="ms">database</span></button>
   <button class="icon-btn" id="dlBackupBtn" title="Download full backup (.zip)" onclick="triggerFullBackup()"><span class="ms">backup</span></button>
@@ -528,7 +529,7 @@ function renderDrawer() {
         <img src="${esc(bin.qr_url)}" width="150" height="150" loading="lazy" alt="QR">
         <span class="mono" style="font-size:13px;font-weight:600;letter-spacing:.08em">${esc(bin.bin_id)}</span>
         <div style="display:flex;gap:8px">
-          <button class="btn primary" onclick="printLabel('${esc(bin.bin_id)}', '${esc(bin.qr_url)}')"><span class="ms">print</span>Print Label</button>
+          <button class="btn primary" onclick="openPrintSizePicker('${esc(bin.bin_id)}', '${esc(bin.qr_url)}')"><span class="ms">print</span>Print Label</button>
           <a href="/bin/${encodeURIComponent(bin.bin_id)}" target="_blank" class="btn"><span class="ms">open_in_new</span>Mobile View</a>
         </div>
       </div>
@@ -807,6 +808,36 @@ async function saveAddItem() {
   } catch (e) { $("iErr").textContent = e.message; $("iSave").disabled = false; }
 }
 
+async function openImportCSV() {
+  modal(`
+    <div class="mh"><div><h2>${L.bulk.import_csv_title}</h2><p>${L.bulk.import_csv_desc}</p></div>
+      <div class="mb">
+        <form id="importCsvForm">
+          <label class="f">${L.bulk.file_label}</label>
+          <input class="in" type="file" id="importCsvFile" accept=".csv" required>
+          <div class="err" id="importCsvErr"></div>
+        </form>
+      </div>
+      <div class="mf">
+        <button class="btn" onclick="closeModal()">${L.modal.cancel}</button>
+        <button class="btn primary" onclick="applyImportCSV()"><span class="ms">${L.bulk.apply}</span></button>
+      </div>`);
+  $("importCsvFile").focus();
+}
+
+async function applyImportCSV() {
+  const file = $("importCsvFile").files[0];
+  if (!file) { toast("Please select a CSV file first", true); return; }
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const res = await api("/api/import-csv", { method: "POST", body: formData });
+    toast(`${res.imported} item${res.imported === 1 ? "" : "s"} imported`);
+    closeModal();
+    await load();
+  } catch (e) { toast("Import failed: " + e.message, true); }
+}
+
 function openMoveItems(itemIds, label) {
   const opts = BINS.map(b => {
     const cnt = ITEMS.filter(i => i.bin_id === b.bin_id).length;
@@ -1068,16 +1099,68 @@ async function uploadPhoto(type, id, file) {
   } catch (e) { toast("Upload failed: " + e.message, true); }
 }
 
-function printLabel(binId, qrUrl) {
+function printLabel(binId, qrUrl, size) {
+  size = size || "1.5x1.5";
+  const [w, h] = size.split("x").map(Number);
+  const wPx = w * 96, hPx = h * 96;
   const w = window.open("", "_blank", "width=420,height=480");
-  w.document.write(`<!doctype html><html><head><title>${binId}</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff">
-    <div style="text-align:center;font-family:sans-serif;padding:24px;border:3px dashed #000;border-radius:10px">
-      <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#666;margin-bottom:8px">Kapaat</div>
-      <img src="${qrUrl}" style="width:200px;height:200px">
+  w.document.write(`<!doctype html><html><head><title>${binId}</title><style>
+    @page { margin: 0; size: ${w}in ${h}in; }
+    @media print { .print-btn { display: none !important; } }
+  </style></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff">
+    <div style="text-align:center;font-family:sans-serif;padding:24px;border:3px dashed #000;border-radius:10px;box-sizing:border-box;width:${wPx}px;height:${hPx}px;display:flex;flex-direction:column;align-items:center;justify-content:space-between">
+      <div style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#666">Kapaat</div>
+      <img src="${qrUrl}" style="width:120px;height:120px">
       <div style="font-size:28px;font-weight:700;letter-spacing:.1em;margin:10px 0;font-family:monospace">${binId}</div>
-      <button onclick="window.print();window.close()" style="padding:8px 20px;font-size:14px;cursor:pointer;border-radius:4px;border:1px solid #ccc">Print Now</button>
+      <button class="print-btn" onclick="window.print();window.close()" style="padding:8px 20px;font-size:14px;cursor:pointer;border-radius:4px;border:1px solid #ccc">Print Now</button>
     </div></body></html>`);
   w.document.close();
+}
+
+function openPrintSizePicker(binId, qrUrl) {
+  modal(`
+    <div class="mh"><div><h2>${L.bin.print_label_title}</h2><p>${L.bin.print_label_desc}</p></div>
+      <button class="icon-btn" onclick="closeModal()"><span class="ms">close</span></button></div>
+    <div class="mb">
+      <div><label class="f">${L.bin.size_label}</label>
+        <select class="in" id="printSize" style="height:36px">
+          <option value="1x1">1" × 1"</option>
+          <option value="1.5x1.5" selected>1.5" × 1.5"</option>
+          <option value="2x2">2" × 2"</option>
+          <option value="3x3">3" × 3"</option>
+          <option value="4x4">4" × 4"</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div id="customSizeRow" style="display:none;margin-top:8px">
+        <div class="row2">
+          <div><label class="f">Width (in)</label><input class="in" id="printW" type="number" min="0.5" step="0.25" value="1.5"></div>
+          <div><label class="f">Height (in)</label><input class="in" id="printH" type="number" min="0.5" step="0.25" value="1.5"></div>
+        </div>
+      </div>
+      <div class="err" id="printErr"></div>
+    </div>
+    <div class="mf">
+      <button class="btn" onclick="closeModal()">${L.modal.cancel}</button>
+      <button class="btn primary" onclick="applyPrintSize('${esc(bin.bin_id)}', '${esc(bin.qr_url)}')"><span class="ms">print</span>${L.bin.print_now}</button>
+    </div>`);
+  $("printSize").addEventListener("change", e => {
+    $("customSizeRow").style.display = e.target.value === "custom" ? "block" : "none";
+  });
+}
+
+function applyPrintSize(binId, qrUrl) {
+  const sel = $("printSize").value;
+  let size;
+  if (sel === "custom") {
+    const w = $("printW").value, h = $("printH").value;
+    if (!w || !h || parseFloat(w) <= 0 || parseFloat(h) <= 0) { $("printErr").textContent = "Width and height must be positive numbers"; return; }
+    size = `${w}x${h}`;
+  } else {
+    size = sel;
+  }
+  closeModal();
+  printLabel(binId, qrUrl, size);
 }
 
 document.addEventListener("keydown", e => {
