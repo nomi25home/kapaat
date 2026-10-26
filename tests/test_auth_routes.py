@@ -7,25 +7,27 @@ so anonymous requests (no session cookie) must be denied even in open mode.
 
 from __future__ import annotations
 
-import io
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _sync_row(client, payload):
     return client.post("/api/sync-row?N8N_WEBHOOK_SECRET=test-webhook-secret", json=payload)
 
 
 def _seed_bin_and_item(admin_client):
-    admin_client.post("/add-bin", data={"bin_id": "BIN-T1", "zone": "Garage", "shelf": "A1", "color": "#000000", "room": ""})
+    admin_client.post(
+        "/add-bin",
+        data={"bin_id": "BIN-T1", "zone": "Garage", "shelf": "A1", "color": "#000000", "room": ""},
+    )
     _sync_row(admin_client, {"bin_id": "BIN-T1", "name": "Drill", "category": "tools", "quantity": 1})
 
 
 # ---------------------------------------------------------------------------
 # PR-1a: GET /api/backup requires admin
 # ---------------------------------------------------------------------------
+
 
 def test_backup_db_anonymous_denied(client):
     r = client.get("/api/backup")
@@ -42,6 +44,7 @@ def test_backup_db_admin_allowed(admin_client):
 # PR-1b: GET /api/backup/download requires admin
 # ---------------------------------------------------------------------------
 
+
 def test_backup_download_anonymous_denied(client):
     r = client.get("/api/backup/download")
     assert r.status_code == 403, f"expected 403, got {r.status_code}"
@@ -56,6 +59,7 @@ def test_backup_download_admin_allowed(admin_client):
 # ---------------------------------------------------------------------------
 # PR-1c: GET /api/backup/retention is read-only (no deletions)
 # ---------------------------------------------------------------------------
+
 
 def test_backup_retention_get_is_read_only(admin_client, tmp_path, monkeypatch):
     import app as app_module
@@ -112,6 +116,7 @@ def test_backup_retention_post_anonymous_denied(client):
 # PR-1d: GET /export/{file_type} requires admin
 # ---------------------------------------------------------------------------
 
+
 def test_export_csv_anonymous_denied(client):
     r = client.get("/export/csv")
     assert r.status_code == 403, f"expected 403, got {r.status_code}"
@@ -131,6 +136,7 @@ def test_export_csv_admin_allowed(admin_client):
 # PR-1e: POST /add-item requires write permission
 # ---------------------------------------------------------------------------
 
+
 def test_add_item_anonymous_denied(client):
     # First create a bin via sync-row so the bin exists
     _sync_row(client, {"bin_id": "BIN-I1", "name": "seed", "category": "c", "quantity": 1})
@@ -149,13 +155,15 @@ def test_add_item_admin_allowed(admin_client, client):
 # PR-1f: GET /api/sync-conflicts requires read permission
 # ---------------------------------------------------------------------------
 
+
 def test_sync_conflicts_anonymous_denied_when_api_key_set(monkeypatch):
     """When SERVICE_API_KEY is configured, anonymous access to sync-conflicts is denied."""
     import importlib
     import os
 
-    import app as app_module
     from fastapi.testclient import TestClient
+
+    import app as app_module
 
     os.environ["SERVICE_API_KEY"] = "test-key-scoped"
     os.environ["SERVICE_API_SCOPES"] = "read,write"
