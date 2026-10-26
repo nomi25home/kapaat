@@ -1076,6 +1076,16 @@ async def dashboard(request: Request, search: str = ""):
     )
 
 
+@app.get("/bin/{bin_id}")
+async def bin_redirect(bin_id: str):
+    """Redirect QR deep-links (/bin/<id>) to the scan view (/scan/<id>).
+
+    Printed QR labels encode /bin/ URLs; this redirect means old labels
+    continue to work even if the canonical path ever changes again.
+    """
+    return RedirectResponse(f"/scan/{urllib.parse.quote(bin_id)}", status_code=302)
+
+
 @app.get("/scan/{bin_id}", response_class=HTMLResponse)
 async def scan_bin(request: Request, bin_id: str):
     """Mobile-optimized read-only view for a bin."""
