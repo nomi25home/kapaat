@@ -1319,6 +1319,18 @@ async def delete_item(item_id: int, request: Request):
     return JSONResponse({"ok": True})
 
 
+_MAX_PHOTO_BYTES = int(os.environ.get("MAX_PHOTO_BYTES", str(20 * 1024 * 1024)))  # default 20 MB
+
+# Magic-byte signatures for accepted image formats.
+_IMAGE_MAGIC: dict[str, bytes] = {
+    ".jpg": b"\xff\xd8\xff",
+    ".jpeg": b"\xff\xd8\xff",
+    ".png": b"\x89PNG",
+    ".webp": b"RIFF",
+    ".heic": b"\x00\x00\x00",  # ftyp box — approximate; full validation is out of scope
+}
+
+
 @app.post("/upload-photo/{photo_type}/{record_id}")
 async def upload_photo(request: Request, photo_type: str, record_id: str, file: UploadFile = File(...)):
     require_admin(request)
@@ -1328,9 +1340,30 @@ async def upload_photo(request: Request, photo_type: str, record_id: str, file: 
     ext = Path(safe_name).suffix.lower()
     if ext not in {".jpg", ".jpeg", ".png", ".webp", ".heic"}:
         ext = ".jpg"
+
+    # Read file in chunks to enforce size limit without loading the whole file first.
+    chunks: list[bytes] = []
+    total = 0
+    chunk_size = 64 * 1024
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > _MAX_PHOTO_BYTES:
+            raise HTTPException(status_code=413, detail=f"Upload exceeds maximum size of {_MAX_PHOTO_BYTES} bytes")
+        chunks.append(chunk)
+    data = b"".join(chunks)
+
+    # Validate magic bytes for the declared extension (skip for .heic — too varied).
+    if ext in (".jpg", ".jpeg", ".png", ".webp"):
+        magic = _IMAGE_MAGIC.get(ext, b"")
+        if magic and not data[:len(magic)].startswith(magic):
+            raise HTTPException(status_code=400, detail="File content does not match the declared image type")
+
     filename = f"{photo_type}_{record_id}_{int(time.time())}{ext}"
     filepath = PHOTOS_DIR / filename
-    filepath.write_bytes(await file.read())
+    filepath.write_bytes(data)
 
     conn = get_db()
     cursor = conn.cursor()
