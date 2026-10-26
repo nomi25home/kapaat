@@ -1110,7 +1110,8 @@ function printLabel(binId, qrUrl, size, options = {}) {
   const labelWpx = labelW * 96, labelHpx = labelH * 96;
   const qrSize = Math.round(labelW * 96);
   const fontSize = Math.round(14 * Math.min(labelW, labelH) / 1.5);
-  const brandSize = Math.round(6 * Math.min(labelW, labelH) / 1.5);
+  const textH = Math.max(18, Math.round(fontSize * 1.6));  // strip below QR for bin name
+  const qrH = labelHpx - textH;                            // QR image height
 
   // Paper dimensions in inches
   const paperDims = {
@@ -1148,14 +1149,9 @@ function printLabel(binId, qrUrl, size, options = {}) {
     const left = col * labelWpx;
     const top = row * labelHpx;
     labelsHtml.push(`
-      <div style="position:absolute;left:${left}px;top:${top}px;width:${labelWpx}px;height:${labelHpx}px;page-break-inside:avoid">
-        <div style="position:relative;width:${qrSize}px;height:${qrSize}px">
-          <img src="${qrUrl}" style="width:100%;height:100%;display:block">
-          <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;pointer-events:none">
-            <div style="font-size:${brandSize}px;letter-spacing:.15em;text-transform:uppercase;color:#666;white-space:nowrap;text-shadow:0 0 3px #fff">Kapaat</div>
-            <div style="font-size:${fontSize}px;font-weight:700;letter-spacing:.05em;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-shadow:0 0 3px #fff">${binId}</div>
-          </div>
-        </div>
+      <div style="position:absolute;left:${left}px;top:${top}px;width:${labelWpx}px;height:${labelHpx}px;box-sizing:border-box;border:1px dashed #aaa;page-break-inside:avoid;overflow:hidden">
+        <img src="${qrUrl}" style="width:${labelWpx}px;height:${qrH}px;display:block">
+        <div style="height:${textH}px;display:flex;align-items:center;justify-content:center;border-top:1px dashed #aaa;font-size:${fontSize}px;font-weight:700;font-family:monospace;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;background:#fff;color:#000">${binId}</div>
       </div>
     `);
   }
