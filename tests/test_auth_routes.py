@@ -7,9 +7,6 @@ so anonymous requests (no session cookie) must be denied even in open mode.
 
 from __future__ import annotations
 
-import io
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -19,7 +16,10 @@ def _sync_row(client, payload):
 
 
 def _seed_bin_and_item(admin_client):
-    admin_client.post("/add-bin", data={"bin_id": "BIN-T1", "zone": "Garage", "shelf": "A1", "color": "#000000", "room": ""})
+    admin_client.post(
+        "/add-bin",
+        data={"bin_id": "BIN-T1", "zone": "Garage", "shelf": "A1", "color": "#000000", "room": ""},
+    )
     _sync_row(admin_client, {"bin_id": "BIN-T1", "name": "Drill", "category": "tools", "quantity": 1})
 
 
@@ -154,8 +154,9 @@ def test_sync_conflicts_anonymous_denied_when_api_key_set(monkeypatch):
     import importlib
     import os
 
-    import app as app_module
     from fastapi.testclient import TestClient
+
+    import app as app_module
 
     os.environ["SERVICE_API_KEY"] = "test-key-scoped"
     os.environ["SERVICE_API_SCOPES"] = "read,write"

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
-
+from unittest.mock import AsyncMock, MagicMock
 
 # ---------------------------------------------------------------------------
 # PR-2: auth_callback must redirect to / on success
@@ -104,7 +102,7 @@ def test_sqlcipher_import_failure_raises():
     try:
         import pytest
         with pytest.raises(RuntimeError, match="pysqlcipher3 is not installed"):
-            import app  # noqa: F401
+            import app
     finally:
         # Restore env and module cache
         if original is None:
