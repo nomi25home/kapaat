@@ -1,1 +1,36 @@
+# secrets and local config
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Local data and uploads
+/data/
+
+# Backup archives
+*.zip
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor
+.DS_Store
+*.swp
+
+# GBrain
 .gbrain-source

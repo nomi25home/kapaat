@@ -33,9 +33,32 @@ jobs:
       - name: Run Ruff Formatter Check
         run: ruff format --check .
 
+  test:
+    name: Test Suite (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install fastapi uvicorn jinja2 pandas openpyxl requests python-multipart \
+            aiofiles "authlib>=1.3.0" "httpx>=0.27.0" "itsdangerous>=2.1.2" pytest
+
+      - name: Run tests
+        env:
+          AUTH_SECRET_KEY: ci-test-secret-not-for-production
+          N8N_WEBHOOK_SECRET: ci-test-webhook-secret
+        run: pytest tests/ -v
+
   build-and-push:
     name: Build & Push Docker Image
-    needs: lint
+    needs: [lint, test]
     # Only build images on pushes to main or when creating version tags
     if: github.event_name == 'push'
     runs-on: ubuntu-latest

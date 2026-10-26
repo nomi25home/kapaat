@@ -1,4 +1,5 @@
 # ruff: noqa
+import asyncio
 import io
 import json
 import os
@@ -125,11 +126,13 @@ SERVICE_API_SCOPES = [s.strip() for s in os.environ.get("SERVICE_API_SCOPES", "r
 if DB_ENCRYPTION_KEY:
     try:
         from pysqlcipher3 import dbapi2 as sqlite3
-    except ImportError:
-        print(
-            "WARNING: DB_ENCRYPTION_KEY is set but pysqlcipher3 is not installed. Falling back to unencrypted SQLite."
-        )
-        DB_ENCRYPTION_KEY = ""
+    except ImportError as exc:
+        raise RuntimeError(
+            "DB_ENCRYPTION_KEY is set but pysqlcipher3 is not installed. "
+            "Install it (requires libsqlcipher-dev) or use the ENABLE_SQLCIPHER=1 "
+            "Docker build arg. Refusing to start with unencrypted storage when "
+            "encryption was explicitly requested."
+        ) from exc
 
 # Public URL used to build QR code deep-links (must be reachable from phones on the same network).
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8096")
@@ -224,16 +227,25 @@ _mfa_store: dict[str, tuple[str, float]] = {}
 _mfa_attempts: dict[str, dict] = {}
 
 
+_MFA_RATE_WINDOW = 1800  # seconds before the attempt counter resets (30 min)
+
+
 def _check_mfa_rate_limit(email: str) -> float:
     """Return the number of seconds to delay before responding to an OTP
     verification attempt for ``email``. Returns 0 if no delay is needed.
 
     Delays are applied *before* responding so a failed attempt and a
     successful one take the same wall-clock time — no timing side-channel
-    leaks whether the OTP was correct.
+    leaks whether the OTP was correct. The counter resets after
+    _MFA_RATE_WINDOW seconds of inactivity.
     """
+    import time as _time
+
     record = _mfa_attempts.get(email)
     if not record:
+        return 0.0
+    if _time.time() - record.get("first_ts", 0) > _MFA_RATE_WINDOW:
+        del _mfa_attempts[email]
         return 0.0
     fails = record["fails"]
     if fails <= 1:
@@ -249,15 +261,18 @@ def _check_mfa_rate_limit(email: str) -> float:
 
 def _record_mfa_failure(email: str) -> None:
     """Record a failed OTP verification attempt for ``email``."""
-    record = _mfa_attempts.setdefault(email, {"fails": 0})
-    record["fails"] += 1
+    import time as _time
+
+    if email not in _mfa_attempts:
+        _mfa_attempts[email] = {"fails": 0, "first_ts": _time.time()}
+    _mfa_attempts[email]["fails"] += 1
 
 
 def _generate_otp() -> str:
     """Generate a 6‑digit one‑time password."""
-    import random
+    import secrets
 
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _send_otp_email(email: str, code: str) -> None:
@@ -383,7 +398,7 @@ async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(.
     # or not a pending challenge exists — no timing side-channel.
     delay = _check_mfa_rate_limit(email)
     if delay:
-        time.sleep(delay)
+        await asyncio.sleep(delay)
 
     record = _mfa_store.get(email)
     if not record:
@@ -794,7 +809,8 @@ def trigger_n8n_sync(bin_id: str, name: str, category: str, quantity: int, item_
     if not N8N_WEBHOOK_URL:
         return
     try:
-        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=5, verify=False)
+        tls_verify = os.environ.get("N8N_CA_BUNDLE") or True
+        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=5, verify=tls_verify)
         print(f"n8n Sync Status: {response.status_code}")
     except Exception as e:
         print(f"Could not forward data to n8n webhook: {e}")
@@ -925,7 +941,7 @@ async def login(request: Request):
 
 @app.get("/auth/callback", name="auth_callback")
 async def auth_callback(request: Request):
-    import time as _time
+    import time as _time  # noqa: PLC0415 — needed for _attempts timestamp
 
     token = await oauth.authentik.authorize_access_token(request)
     user = token.get("userinfo") or await oauth.authentik.userinfo(token=token)
@@ -947,26 +963,31 @@ async def auth_callback(request: Request):
     allowed = [e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()]
     blocked = [e.strip().lower() for e in os.environ.get("BLOCKED_EMAILS", "").split(",") if e.strip()]
 
-    # Track per-IP attempt count for backoff
+    # Track per-IP attempt count for backoff; reset after 15 minutes of inactivity.
+    _OIDC_RATE_WINDOW = 900  # seconds
     ip = request.client.host
     now = _time.time()
-    attempts = _attempts.get(ip, {"count": 0, "first_ts": now, "last_ts": now})
-    attempts["count"] += 1
-    attempts["last_ts"] = now
-    _attempts[ip] = attempts
+    existing = _attempts.get(ip)
+    if existing and now - existing.get("first_ts", now) > _OIDC_RATE_WINDOW:
+        existing = None
+    if existing is None:
+        existing = {"count": 0, "first_ts": now}
+    existing["count"] += 1
+    _attempts[ip] = existing
 
     # Delay before responding (denies timing side-channel)
-    if attempts["count"] >= 5:
+    count = existing["count"]
+    if count >= 5:
         delay = 60
-    elif attempts["count"] >= 4:
+    elif count >= 4:
         delay = 30
-    elif attempts["count"] >= 3:
+    elif count >= 3:
         delay = 15
-    elif attempts["count"] >= 2:
+    elif count >= 2:
         delay = 5
     else:
         delay = 0
-    _time.sleep(delay)
+    await asyncio.sleep(delay)
 
     if allowed and email not in allowed:
         # Whitelist active and email doesn't match → deny
@@ -985,6 +1006,7 @@ async def auth_callback(request: Request):
     # ---- End email gate ----
 
     request.session["is_admin"] = is_admin
+    return RedirectResponse("/", status_code=302)
 
 
 @app.get("/logout")
@@ -1054,6 +1076,16 @@ async def dashboard(request: Request, search: str = ""):
     )
 
 
+@app.get("/bin/{bin_id}")
+async def bin_redirect(bin_id: str):
+    """Redirect QR deep-links (/bin/<id>) to the scan view (/scan/<id>).
+
+    Printed QR labels encode /bin/ URLs; this redirect means old labels
+    continue to work even if the canonical path ever changes again.
+    """
+    return RedirectResponse(f"/scan/{urllib.parse.quote(bin_id)}", status_code=302)
+
+
 @app.get("/scan/{bin_id}", response_class=HTMLResponse)
 async def scan_bin(request: Request, bin_id: str):
     """Mobile-optimized read-only view for a bin."""
@@ -1119,6 +1151,7 @@ async def web_add_item(
     category: str = Form(...),
     qty: int = Form(...),
 ):
+    require_write(request)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -1286,6 +1319,18 @@ async def delete_item(item_id: int, request: Request):
     return JSONResponse({"ok": True})
 
 
+_MAX_PHOTO_BYTES = int(os.environ.get("MAX_PHOTO_BYTES", str(20 * 1024 * 1024)))  # default 20 MB
+
+# Magic-byte signatures for accepted image formats.
+_IMAGE_MAGIC: dict[str, bytes] = {
+    ".jpg": b"\xff\xd8\xff",
+    ".jpeg": b"\xff\xd8\xff",
+    ".png": b"\x89PNG",
+    ".webp": b"RIFF",
+    ".heic": b"\x00\x00\x00",  # ftyp box — approximate; full validation is out of scope
+}
+
+
 @app.post("/upload-photo/{photo_type}/{record_id}")
 async def upload_photo(request: Request, photo_type: str, record_id: str, file: UploadFile = File(...)):
     require_admin(request)
@@ -1295,9 +1340,30 @@ async def upload_photo(request: Request, photo_type: str, record_id: str, file: 
     ext = Path(safe_name).suffix.lower()
     if ext not in {".jpg", ".jpeg", ".png", ".webp", ".heic"}:
         ext = ".jpg"
+
+    # Read file in chunks to enforce size limit without loading the whole file first.
+    chunks: list[bytes] = []
+    total = 0
+    chunk_size = 64 * 1024
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > _MAX_PHOTO_BYTES:
+            raise HTTPException(status_code=413, detail=f"Upload exceeds maximum size of {_MAX_PHOTO_BYTES} bytes")
+        chunks.append(chunk)
+    data = b"".join(chunks)
+
+    # Validate magic bytes for the declared extension (skip for .heic — too varied).
+    if ext in (".jpg", ".jpeg", ".png", ".webp"):
+        magic = _IMAGE_MAGIC.get(ext, b"")
+        if magic and not data[:len(magic)].startswith(magic):
+            raise HTTPException(status_code=400, detail="File content does not match the declared image type")
+
     filename = f"{photo_type}_{record_id}_{int(time.time())}{ext}"
     filepath = PHOTOS_DIR / filename
-    filepath.write_bytes(await file.read())
+    filepath.write_bytes(data)
 
     conn = get_db()
     cursor = conn.cursor()
@@ -1502,8 +1568,9 @@ async def sync_row_from_sheet(request: Request):
 
 
 @app.get("/api/backup")
-async def backup_database():
+async def backup_database(request: Request):
     """Download a point-in-time snapshot of the SQLite database."""
+    require_admin(request)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     backup_path = f"/tmp/kapaat-backup-{ts}.db"
     src = get_db()
@@ -1519,8 +1586,9 @@ async def backup_database():
 
 
 @app.get("/api/backup/download")
-async def download_full_backup():
+async def download_full_backup(request: Request):
     """Stream a zip archive containing the live DB snapshot and all photos."""
+    require_admin(request)
     import tempfile
 
     zip_buffer = io.BytesIO()
@@ -1549,7 +1617,7 @@ async def download_full_backup():
     # here, not only on manual trigger, so a forgotten /api/backup/retention
     # call never lets archives pile up.
     try:
-        await backup_retention()
+        await _prune_backups()
     except Exception:
         pass
     zip_buffer.seek(0)
@@ -1563,11 +1631,25 @@ async def download_full_backup():
 
 @app.get("/api/backup/retention")
 async def backup_retention():
-    """List and auto-prune backup archives in /data/backups/."""
+    """List backup archives in /data/backups/ (read-only, no deletion)."""
     backups_dir = Path("/data/backups")
     backups_dir.mkdir(parents=True, exist_ok=True)
     files = sorted(backups_dir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
-    # Keep last 10 backups by default
+    keep = 10
+    return JSONResponse(
+        {
+            "kept": [f.name for f in files[:keep]],
+            "excess": [f.name for f in files[keep:]],
+            "retention_limit": keep,
+        }
+    )
+
+
+async def _prune_backups():
+    """Delete backup archives beyond the retention limit. Called only from authenticated POST."""
+    backups_dir = Path("/data/backups")
+    backups_dir.mkdir(parents=True, exist_ok=True)
+    files = sorted(backups_dir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
     keep = 10
     pruned = []
     for f in files[keep:]:
@@ -1587,14 +1669,15 @@ async def backup_retention():
 
 @app.post("/api/backup/retention")
 async def backup_retention_post(request: Request):
+    """Manual trigger for backup pruning (admin only)."""
     require_admin(request)
-    """Manual trigger for backup pruning."""
-    return await backup_retention()
+    return await _prune_backups()
 
 
 @app.get("/api/sync-conflicts")
 async def sync_conflicts(request: Request):
     """Return unresolved sync conflicts for the dashboard banner."""
+    require_read(request)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -1666,7 +1749,8 @@ self.addEventListener("fetch", e => {
 
 
 @app.get("/export/{file_type}")
-async def export_data(file_type: str):
+async def export_data(request: Request, file_type: str):
+    require_admin(request)
     conn = get_db()
     df = pd.read_sql_query(
         """
