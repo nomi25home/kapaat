@@ -796,7 +796,8 @@ def trigger_n8n_sync(bin_id: str, name: str, category: str, quantity: int, item_
     if not N8N_WEBHOOK_URL:
         return
     try:
-        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=5, verify=False)
+        tls_verify = os.environ.get("N8N_CA_BUNDLE") or True
+        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=5, verify=tls_verify)
         print(f"n8n Sync Status: {response.status_code}")
     except Exception as e:
         print(f"Could not forward data to n8n webhook: {e}")
