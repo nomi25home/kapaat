@@ -1,4 +1,5 @@
 # ruff: noqa
+import asyncio
 import io
 import json
 import os
@@ -226,16 +227,25 @@ _mfa_store: dict[str, tuple[str, float]] = {}
 _mfa_attempts: dict[str, dict] = {}
 
 
+_MFA_RATE_WINDOW = 1800  # seconds before the attempt counter resets (30 min)
+
+
 def _check_mfa_rate_limit(email: str) -> float:
     """Return the number of seconds to delay before responding to an OTP
     verification attempt for ``email``. Returns 0 if no delay is needed.
 
     Delays are applied *before* responding so a failed attempt and a
     successful one take the same wall-clock time — no timing side-channel
-    leaks whether the OTP was correct.
+    leaks whether the OTP was correct. The counter resets after
+    _MFA_RATE_WINDOW seconds of inactivity.
     """
+    import time as _time
+
     record = _mfa_attempts.get(email)
     if not record:
+        return 0.0
+    if _time.time() - record.get("first_ts", 0) > _MFA_RATE_WINDOW:
+        del _mfa_attempts[email]
         return 0.0
     fails = record["fails"]
     if fails <= 1:
@@ -251,15 +261,18 @@ def _check_mfa_rate_limit(email: str) -> float:
 
 def _record_mfa_failure(email: str) -> None:
     """Record a failed OTP verification attempt for ``email``."""
-    record = _mfa_attempts.setdefault(email, {"fails": 0})
-    record["fails"] += 1
+    import time as _time
+
+    if email not in _mfa_attempts:
+        _mfa_attempts[email] = {"fails": 0, "first_ts": _time.time()}
+    _mfa_attempts[email]["fails"] += 1
 
 
 def _generate_otp() -> str:
     """Generate a 6‑digit one‑time password."""
-    import random
+    import secrets
 
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _send_otp_email(email: str, code: str) -> None:
@@ -385,7 +398,7 @@ async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(.
     # or not a pending challenge exists — no timing side-channel.
     delay = _check_mfa_rate_limit(email)
     if delay:
-        time.sleep(delay)
+        await asyncio.sleep(delay)
 
     record = _mfa_store.get(email)
     if not record:
@@ -928,7 +941,7 @@ async def login(request: Request):
 
 @app.get("/auth/callback", name="auth_callback")
 async def auth_callback(request: Request):
-    import time as _time
+    import time as _time  # noqa: PLC0415 — needed for _attempts timestamp
 
     token = await oauth.authentik.authorize_access_token(request)
     user = token.get("userinfo") or await oauth.authentik.userinfo(token=token)
@@ -950,26 +963,31 @@ async def auth_callback(request: Request):
     allowed = [e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()]
     blocked = [e.strip().lower() for e in os.environ.get("BLOCKED_EMAILS", "").split(",") if e.strip()]
 
-    # Track per-IP attempt count for backoff
+    # Track per-IP attempt count for backoff; reset after 15 minutes of inactivity.
+    _OIDC_RATE_WINDOW = 900  # seconds
     ip = request.client.host
     now = _time.time()
-    attempts = _attempts.get(ip, {"count": 0, "first_ts": now, "last_ts": now})
-    attempts["count"] += 1
-    attempts["last_ts"] = now
-    _attempts[ip] = attempts
+    existing = _attempts.get(ip)
+    if existing and now - existing.get("first_ts", now) > _OIDC_RATE_WINDOW:
+        existing = None
+    if existing is None:
+        existing = {"count": 0, "first_ts": now}
+    existing["count"] += 1
+    _attempts[ip] = existing
 
     # Delay before responding (denies timing side-channel)
-    if attempts["count"] >= 5:
+    count = existing["count"]
+    if count >= 5:
         delay = 60
-    elif attempts["count"] >= 4:
+    elif count >= 4:
         delay = 30
-    elif attempts["count"] >= 3:
+    elif count >= 3:
         delay = 15
-    elif attempts["count"] >= 2:
+    elif count >= 2:
         delay = 5
     else:
         delay = 0
-    _time.sleep(delay)
+    await asyncio.sleep(delay)
 
     if allowed and email not in allowed:
         # Whitelist active and email doesn't match → deny
