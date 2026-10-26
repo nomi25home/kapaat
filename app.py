@@ -1119,6 +1119,7 @@ async def web_add_item(
     category: str = Form(...),
     qty: int = Form(...),
 ):
+    require_write(request)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -1502,8 +1503,9 @@ async def sync_row_from_sheet(request: Request):
 
 
 @app.get("/api/backup")
-async def backup_database():
+async def backup_database(request: Request):
     """Download a point-in-time snapshot of the SQLite database."""
+    require_admin(request)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     backup_path = f"/tmp/kapaat-backup-{ts}.db"
     src = get_db()
@@ -1519,8 +1521,9 @@ async def backup_database():
 
 
 @app.get("/api/backup/download")
-async def download_full_backup():
+async def download_full_backup(request: Request):
     """Stream a zip archive containing the live DB snapshot and all photos."""
+    require_admin(request)
     import tempfile
 
     zip_buffer = io.BytesIO()
@@ -1549,7 +1552,7 @@ async def download_full_backup():
     # here, not only on manual trigger, so a forgotten /api/backup/retention
     # call never lets archives pile up.
     try:
-        await backup_retention()
+        await _prune_backups()
     except Exception:
         pass
     zip_buffer.seek(0)
@@ -1563,11 +1566,25 @@ async def download_full_backup():
 
 @app.get("/api/backup/retention")
 async def backup_retention():
-    """List and auto-prune backup archives in /data/backups/."""
+    """List backup archives in /data/backups/ (read-only, no deletion)."""
     backups_dir = Path("/data/backups")
     backups_dir.mkdir(parents=True, exist_ok=True)
     files = sorted(backups_dir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
-    # Keep last 10 backups by default
+    keep = 10
+    return JSONResponse(
+        {
+            "kept": [f.name for f in files[:keep]],
+            "excess": [f.name for f in files[keep:]],
+            "retention_limit": keep,
+        }
+    )
+
+
+async def _prune_backups():
+    """Delete backup archives beyond the retention limit. Called only from authenticated POST."""
+    backups_dir = Path("/data/backups")
+    backups_dir.mkdir(parents=True, exist_ok=True)
+    files = sorted(backups_dir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
     keep = 10
     pruned = []
     for f in files[keep:]:
@@ -1587,14 +1604,15 @@ async def backup_retention():
 
 @app.post("/api/backup/retention")
 async def backup_retention_post(request: Request):
+    """Manual trigger for backup pruning (admin only)."""
     require_admin(request)
-    """Manual trigger for backup pruning."""
-    return await backup_retention()
+    return await _prune_backups()
 
 
 @app.get("/api/sync-conflicts")
 async def sync_conflicts(request: Request):
     """Return unresolved sync conflicts for the dashboard banner."""
+    require_read(request)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -1666,7 +1684,8 @@ self.addEventListener("fetch", e => {
 
 
 @app.get("/export/{file_type}")
-async def export_data(file_type: str):
+async def export_data(request: Request, file_type: str):
+    require_admin(request)
     conn = get_db()
     df = pd.read_sql_query(
         """
