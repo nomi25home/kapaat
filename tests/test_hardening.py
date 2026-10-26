@@ -172,12 +172,10 @@ def test_non_admin_denied_on_mutating_route(client, admin_client):
         assert r.status_code == 200
 
 
-def test_backup_retention_prunes(client, tmp_path):
-    """More than 10 backups must be pruned to the retention limit."""
+def test_backup_retention_prunes(admin_client, tmp_path):
+    """POST /api/backup/retention (admin) must prune archives beyond the limit."""
     import app as app_module
 
-    # backup_retention() resolves /data/backups via the module-level Path.
-    # Patch it so the absolute path lands inside tmp_path instead of /data.
     monkeypatch_target = app_module.Path
     app_module.Path = lambda p: tmp_path / str(p).lstrip("/")
     try:
@@ -185,7 +183,7 @@ def test_backup_retention_prunes(client, tmp_path):
         backups.mkdir(parents=True)
         for i in range(15):
             (backups / f"old-{i}.zip").write_bytes(b"zip")
-        r = client.get("/api/backup/retention")
+        r = admin_client.post("/api/backup/retention")
         assert r.status_code == 200
         body = r.json()
         assert body["retention_limit"] == 10
