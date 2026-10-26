@@ -187,7 +187,16 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method.upper()
 
-        if method in _CSRF_SAFE_METHODS or path in _CSRF_EXEMPT_PATHS or path.startswith("/api/"):
+        # Requests authenticated via Bearer token or X-API-Key are machine-to-machine
+        # calls that cannot carry a session cookie and are immune to CSRF by design.
+        auth_header = request.headers.get("authorization", "")
+        api_key_header = request.headers.get("x-api-key", "")
+        if (
+            method in _CSRF_SAFE_METHODS
+            or path in _CSRF_EXEMPT_PATHS
+            or auth_header.lower().startswith("bearer ")
+            or api_key_header
+        ):
             return await call_next(request)
 
         # State-changing request: require a valid CSRF token.
