@@ -125,11 +125,13 @@ SERVICE_API_SCOPES = [s.strip() for s in os.environ.get("SERVICE_API_SCOPES", "r
 if DB_ENCRYPTION_KEY:
     try:
         from pysqlcipher3 import dbapi2 as sqlite3
-    except ImportError:
-        print(
-            "WARNING: DB_ENCRYPTION_KEY is set but pysqlcipher3 is not installed. Falling back to unencrypted SQLite."
-        )
-        DB_ENCRYPTION_KEY = ""
+    except ImportError as exc:
+        raise RuntimeError(
+            "DB_ENCRYPTION_KEY is set but pysqlcipher3 is not installed. "
+            "Install it (requires libsqlcipher-dev) or use the ENABLE_SQLCIPHER=1 "
+            "Docker build arg. Refusing to start with unencrypted storage when "
+            "encryption was explicitly requested."
+        ) from exc
 
 # Public URL used to build QR code deep-links (must be reachable from phones on the same network).
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8096")
@@ -985,6 +987,7 @@ async def auth_callback(request: Request):
     # ---- End email gate ----
 
     request.session["is_admin"] = is_admin
+    return RedirectResponse("/", status_code=302)
 
 
 @app.get("/logout")
