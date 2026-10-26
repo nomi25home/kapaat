@@ -1358,7 +1358,7 @@ async def upload_photo(request: Request, photo_type: str, record_id: str, file: 
     # Validate magic bytes for the declared extension (skip for .heic — too varied).
     if ext in (".jpg", ".jpeg", ".png", ".webp"):
         magic = _IMAGE_MAGIC.get(ext, b"")
-        if magic and not data[:len(magic)].startswith(magic):
+        if magic and not data[: len(magic)].startswith(magic):
             raise HTTPException(status_code=400, detail="File content does not match the declared image type")
 
     filename = f"{photo_type}_{record_id}_{int(time.time())}{ext}"

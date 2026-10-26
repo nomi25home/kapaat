@@ -52,8 +52,6 @@ jobs:
 
       - name: Run tests
         env:
-          AUTH_SECRET_KEY: ci-test-secret-not-for-production
-          N8N_WEBHOOK_SECRET: ci-test-webhook-secret
           PYTHONPATH: .
         run: pytest tests/ -v
 

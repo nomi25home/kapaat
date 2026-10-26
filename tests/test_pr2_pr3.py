@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 # PR-2: auth_callback must redirect to / on success
 # ---------------------------------------------------------------------------
 
+
 def _make_oauth_mock(fake_token: dict) -> MagicMock:
     """Return an oauth mock whose .authentik.authorize_access_token returns fake_token."""
     mock_authentik = MagicMock()
@@ -86,6 +87,7 @@ def test_auth_callback_denies_blocked_email(client, monkeypatch):
 # PR-3: SQLCipher import failure must raise RuntimeError (fail-closed)
 # ---------------------------------------------------------------------------
 
+
 def test_sqlcipher_import_failure_raises():
     """If DB_ENCRYPTION_KEY is set but pysqlcipher3 is unavailable, startup must fail."""
     # Save and patch the environment
@@ -101,6 +103,7 @@ def test_sqlcipher_import_failure_raises():
 
     try:
         import pytest
+
         with pytest.raises(RuntimeError, match="pysqlcipher3 is not installed"):
             import app
     finally:
@@ -119,6 +122,7 @@ def test_sqlcipher_import_failure_raises():
 def test_sqlcipher_not_triggered_when_key_unset(client):
     """With DB_ENCRYPTION_KEY unset, app starts normally (no pysqlcipher3 needed)."""
     import app as app_module
+
     assert app_module.DB_ENCRYPTION_KEY == ""
     # If we got here, app imported and the client fixture works — pass.
     r = client.get("/api/items")
