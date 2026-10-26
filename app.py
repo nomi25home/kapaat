@@ -666,8 +666,9 @@ def _migrate_v1(conn: sqlite3.Connection):
     ]:
         try:
             conn.execute(stmt)
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc):
+                raise
     conn.executescript("""
         PRAGMA foreign_keys = OFF;
         BEGIN;
@@ -693,8 +694,9 @@ def _migrate_v2(conn: sqlite3.Connection):
     """Migration 2: add version column for optimistic locking on items."""
     try:
         conn.execute("ALTER TABLE items ADD COLUMN version INTEGER DEFAULT 1")
-    except sqlite3.OperationalError:
-        pass  # already exists
+    except sqlite3.OperationalError as exc:
+        if "duplicate column name" not in str(exc):
+            raise
 
 
 def _migrate_v3(conn: sqlite3.Connection):
@@ -727,8 +729,9 @@ def _migrate_v3(conn: sqlite3.Connection):
     ]:
         try:
             conn.execute(stmt)
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc):
+                raise
     conn.commit()
 
 
@@ -1767,6 +1770,16 @@ self.addEventListener("fetch", e => {
     return Response(content=js, media_type="application/javascript")
 
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_cell(val: object) -> object:
+    """Prefix formula-triggering strings with a single quote to prevent CSV/XLSX injection."""
+    if isinstance(val, str) and val.startswith(_FORMULA_PREFIXES):
+        return "'" + val
+    return val
+
+
 @app.get("/export/{file_type}")
 async def export_data(request: Request, file_type: str):
     require_admin(request)
@@ -1780,6 +1793,9 @@ async def export_data(request: Request, file_type: str):
         conn,
     )
     conn.close()
+
+    # Sanitize all cells to prevent formula injection in spreadsheet clients.
+    df = df.map(_sanitize_cell)
 
     filepath = f"/tmp/garage_inventory.{'csv' if file_type == 'csv' else 'xlsx'}"
     if file_type == "csv":
