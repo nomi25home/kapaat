@@ -123,6 +123,14 @@ SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "").strip()
 # Valid scopes: "read", "write", "admin"
 SERVICE_API_SCOPES = [s.strip() for s in os.environ.get("SERVICE_API_SCOPES", "read,write").split(",") if s.strip()]
 
+if not SERVICE_API_KEY:
+    print(
+        "WARNING: SERVICE_API_KEY is not set — /api/bins, /api/items, "
+        "/api/tag-colors, /photos/ and other require_read routes are "
+        "accessible without authentication (open mode).",
+        flush=True,
+    )
+
 if DB_ENCRYPTION_KEY:
     try:
         from pysqlcipher3 import dbapi2 as sqlite3
@@ -861,7 +869,8 @@ async def bulk_tag(request: Request):
 
 
 @app.get("/api/tag-colors")
-async def get_tag_colors():
+async def get_tag_colors(request: Request):
+    require_read(request)
     conn = get_db()
     rows = conn.execute("SELECT tag_name, hex FROM tag_colors").fetchall()
     conn.close()
@@ -1398,7 +1407,8 @@ async def upload_photo(request: Request, photo_type: str, record_id: str, file: 
 
 
 @app.get("/photos/{filename}")
-async def serve_photo(filename: str):
+async def serve_photo(filename: str, request: Request):
+    require_read(request)
     filepath = PHOTOS_DIR / sanitize_filename(filename)
     if not filepath.exists():
         return JSONResponse({"error": "Not found"}, status_code=404)
