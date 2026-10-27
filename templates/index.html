@@ -1113,25 +1113,28 @@ function printLabel(binId, qrUrl, size, options = {}) {
   const paperDims = { A4: [210, 297], Letter: [215.9, 279.4] };
   const [paperWmm, paperHmm] = paperDims[paperSize] || [labelWmm, labelHmm];
 
-  // Text strip: 15% of label height, min 5 mm
-  const textHmm = Math.max(5, labelHmm * 0.15);
-  const qrHmm   = labelHmm - textHmm;
-  const fontSize = Math.round(14 * Math.min(labelW, labelH) / 1.5);
-
   // How many labels fit, capped at requested count
   const colsFit = Math.floor(paperWmm / labelWmm);
   const rowsFit = Math.floor(paperHmm / labelHmm);
   const totalLabels = paperSize === "none" ? 1 : Math.min(labelsPerPage, colsFit * rowsFit);
 
+  // Layout: QR on the left (square), bin name on the right.
+  // QR side = label height (keeping it square); for square labels QR takes 62% of width.
+  const isLandscape = labelWmm >= labelHmm * 1.25;
+  const qrSidemm = isLandscape ? labelHmm : labelWmm * 0.62;
+  const textWmm  = labelWmm - qrSidemm;
+  const fontSize = Math.max(7, Math.round(9.5 * labelHmm / 25.4));
+
   const labelHtml = `
     <div style="width:${labelWmm}mm;height:${labelHmm}mm;box-sizing:border-box;
-                border:1px dashed #aaa;display:flex;flex-direction:column;
+                border:1px dashed #999;display:flex;flex-direction:row;
                 break-inside:avoid;page-break-inside:avoid;overflow:hidden;flex-shrink:0">
-      <img src="${qrUrl}" style="width:${labelWmm}mm;height:${qrHmm}mm;display:block;flex-shrink:0">
-      <div style="height:${textHmm}mm;display:flex;align-items:center;justify-content:center;
-                  border-top:1px dashed #aaa;font-size:${fontSize}px;font-weight:700;
-                  font-family:monospace;letter-spacing:.05em;white-space:nowrap;
-                  overflow:hidden;text-overflow:ellipsis;padding:0 2mm;
+      <img src="${qrUrl}" style="width:${qrSidemm}mm;height:${labelHmm}mm;display:block;flex-shrink:0">
+      <div style="width:${textWmm}mm;height:${labelHmm}mm;display:flex;align-items:center;justify-content:center;
+                  border-left:1px dashed #999;padding:1mm 2mm;
+                  font-size:${fontSize}px;font-weight:700;
+                  font-family:monospace;letter-spacing:.04em;
+                  word-break:break-all;text-align:center;line-height:1.2;
                   background:#fff;color:#000">${binId}</div>
     </div>`.repeat(totalLabels);
 
@@ -1160,11 +1163,13 @@ function openPrintSizePicker(binId, qrUrl) {
     <div class="mb">
       <div><label class="f">${L.bin.size_label}</label>
         <select class="in" id="printSize" style="height:36px">
-          <option value="1x1">1" × 1"</option>
-          <option value="1.5x1.5" selected>1.5" × 1.5"</option>
-          <option value="2x2">2" × 2"</option>
-          <option value="3x3">3" × 3"</option>
-          <option value="4x4">4" × 4"</option>
+          <option value="2.75x1.5" selected>2.75" × 1.5" (A4 × 3 cols)</option>
+          <option value="2x1">2" × 1"</option>
+          <option value="3x1.5">3" × 1.5"</option>
+          <option value="4x2">4" × 2"</option>
+          <option value="1x1">1" × 1" (square)</option>
+          <option value="1.5x1.5">1.5" × 1.5" (square)</option>
+          <option value="2x2">2" × 2" (square)</option>
           <option value="custom">Custom…</option>
         </select>
       </div>
