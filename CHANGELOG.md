@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [1.3.3] — 2026-10-27
+
+### Fixed
+
+- `docker-compose.yml` now passes `AUTH_SECRET_KEY` and `BASE_URL` via env-var substitution so the app starts correctly out of the box.
+- README "Building from source" `docker run` example now includes `-e AUTH_SECRET_KEY=$(openssl rand -base64 32)`.
+- `pyproject.toml` version synchronized to `1.3.3`.
+
+---
+
+## [1.3.2] — 2026-10-27
+
+### Fixed
+
+- README quick-start generates `AUTH_SECRET_KEY` automatically and documents it as required for Docker Compose.
+- Single-bin QR view now uses the server-computed `qr_url` instead of a hardcoded developer IP.
+- Removed global `# ruff: noqa` from `app.py`; all Ruff findings addressed.
+- CI smoke-test step added before pytest; `PHOTOS_DIR` set to `/tmp/smoke-photos` to avoid `/data` permission error on CI runners.
+- Restore documentation includes concrete shell commands for both `.zip` (UI backup) and `.tar.gz` (shell backup) formats; Alpine restore example adds `apk add --no-cache unzip`.
+
+---
+
 ## [1.3.1] — 2026-10-27
 
 ### Fixed
