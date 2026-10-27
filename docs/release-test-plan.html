@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kapaat Release Test Plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e2e5ea;
+  --fg: #1a1d23;
+  --fg2: #5a6272;
+  --fg3: #8a93a6;
+  --accent: #2563eb;
+  --accent-bg: #eff4ff;
+  --pass: #16a34a;
+  --pass-bg: #f0fdf4;
+  --fail: #dc2626;
+  --fail-bg: #fef2f2;
+  --skip: #d97706;
+  --skip-bg: #fffbeb;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d26;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --fg: #e8eaf0;
+    --fg2: #8a93b2;
+    --fg3: #5a6480;
+    --accent: #4d8cf5;
+    --accent-bg: #1a2340;
+    --pass: #22c55e;
+    --pass-bg: #0f2a1a;
+    --fail: #f87171;
+    --fail-bg: #2a0f0f;
+    --skip: #fbbf24;
+    --skip-bg: #2a200f;
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 0 16px;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+  padding: 12px 0;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+h1 { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+
+.version-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--fg);
+  width: 90px;
+}
+
+.stats { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.stat {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.stat.pass { background: var(--pass-bg); color: var(--pass); }
+.stat.fail { background: var(--fail-bg); color: var(--fail); }
+.stat.skip { background: var(--skip-bg); color: var(--skip); }
+.stat.total { background: var(--surface2); color: var(--fg2); }
+
+.btn-reset {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg2);
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-reset:hover { background: var(--surface2); }
+
+main { padding-block: 16px; max-width: 860px; }
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.section-header:hover { background: var(--surface2); }
+
+.section-title { font-size: 13px; font-weight: 600; flex: 1; }
+.section-badge { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--fg3); }
+
+.section-progress { height: 4px; background: var(--border); overflow: hidden; }
+.section-progress-bar { height: 100%; background: var(--pass); transition: width 0.2s; }
+
+.chevron { font-size: 10px; color: var(--fg3); transition: transform 0.15s; }
+.section.collapsed .chevron { transform: rotate(-90deg); }
+.section.collapsed .cases { display: none; }
+.section.collapsed .section-progress { display: none; }
+
+.case {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.case:last-child { border-bottom: none; }
+.case.status-pass { background: var(--pass-bg); }
+.case.status-fail { background: var(--fail-bg); }
+.case.status-skip { background: var(--skip-bg); }
+
+.case-left { min-width: 0; }
+.case-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--fg3); margin-bottom: 2px; }
+.case-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+
+.case-steps { font-size: 12px; color: var(--fg2); margin: 0; padding-left: 16px; }
+.case-steps li { margin-bottom: 1px; }
+
+.case-expect {
+  font-size: 12px;
+  color: var(--fg2);
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-bg);
+  border-radius: 0 4px 4px 0;
+}
+
+.verdict-btns { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+
+.vbtn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: opacity 0.1s;
+}
+.vbtn.pass { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+.vbtn.fail { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+.vbtn.skip { background: var(--skip-bg); color: var(--skip); border-color: var(--skip); }
+.vbtn.active { opacity: 1; font-weight: 600; }
+.vbtn:not(.active) { opacity: 0.4; }
+.vbtn:hover { opacity: 1; }
+
+.note-input {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--fg);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 32px;
+  display: none;
+}
+.case.status-fail .note-input { display: block; }
+
+.bugs-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.bugs-title { font-size: 13px; font-weight: 600; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+
+.bug-count {
+  font-size: 11px;
+  background: var(--fail-bg);
+  color: var(--fail);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bug-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+
+.bug-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.bug-pr { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); }
+.bug-del { background: none; border: none; cursor: pointer; color: var(--fg3); font-size: 14px; padding: 0 2px; }
+.bug-del:hover { color: var(--fail); }
+
+.add-bug-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.bug-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--fg);
+  font-family: inherit;
+}
+
+.bug-pr-input {
+  width: 100px;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.add-bug-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.empty-msg { font-size: 12px; color: var(--fg3); text-align: center; padding: 10px; }
+
+.env-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.env-label { font-size: 12px; color: var(--fg2); }
+.env-input {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  flex: 1;
+  min-width: 0;
+}
+.date-label { font-size: 12px; color: var(--fg3); font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>Kapaat</h1>
+      <span style="color:var(--fg3);font-size:13px">Release Test Plan</span>
+    </div>
+    <input class="version-input" id="versionInput" placeholder="v1.2.5" title="Release version">
+    <div class="stats">
+      <span class="stat pass" id="statPass">✓ 0</span>
+      <span class="stat fail" id="statFail">✗ 0</span>
+      <span class="stat skip" id="statSkip">— 0</span>
+      <span class="stat total" id="statTotal">0 / 0</span>
+    </div>
+    <button class="btn-reset" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<main>
+  <div class="env-row">
+    <span class="env-label">Test URL</span>
+    <input class="env-input" id="envUrl" placeholder="http://localhost:8000">
+    <span class="date-label" id="dateLabel"></span>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="bugs-section">
+    <div class="bugs-title">
+      Bugs found
+      <span class="bug-count" id="bugCount">0</span>
+    </div>
+    <div class="bug-list" id="bugList"></div>
+    <div class="add-bug-row">
+      <input class="bug-input" id="bugDesc" placeholder="Describe the bug (test case ID + what happened)">
+      <input class="bug-pr-input" id="bugPr" placeholder="PR #">
+      <button class="add-bug-btn" onclick="addBug()">+ Add</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const PLAN = [
+  {
+    id: "AUTH",
+    title: "Authentication & Access",
+    cases: [
+      { id: "AUTH-01", title: "Local login — valid credentials", steps: ["Open app URL", "Enter valid username and password", "Submit"], expect: "Redirected to dashboard; user menu shows logged-in state" },
+      { id: "AUTH-02", title: "Local login — wrong password", steps: ["Enter correct username, wrong password", "Submit"], expect: "Error message shown; no redirect" },
+      { id: "AUTH-03", title: "OIDC login (if configured)", steps: ["Click 'Sign in with Authentik'", "Complete OIDC flow"], expect: "Redirected to dashboard (not HTTP 200 blank page)" },
+      { id: "AUTH-04", title: "MFA — correct OTP", steps: ["Log in as MFA-enabled user", "Enter correct 6-digit OTP"], expect: "Access granted; redirected to dashboard" },
+      { id: "AUTH-05", title: "Logout", steps: ["Click user menu → Log out"], expect: "Session cleared; redirected to login; back button does not re-enter" },
+      { id: "AUTH-06", title: "Read-only user cannot mutate", steps: ["Log in as read-only user", "Try to add/edit/delete a bin"], expect: "Actions disabled or return 403" }
+    ]
+  },
+  {
+    id: "BINS",
+    title: "Bin Management",
+    cases: [
+      { id: "BINS-01", title: "Create a bin", steps: ["Click 'New Bin'", "Enter bin name (e.g. 'Test-Shelf-1')", "Save"], expect: "Bin appears in list with correct name and auto-generated ID" },
+      { id: "BINS-02", title: "Edit bin name and location", steps: ["Open a bin", "Click edit", "Change name and location field", "Save"], expect: "Changes reflected immediately; no page reload required" },
+      { id: "BINS-03", title: "Delete bin", steps: ["Open a bin with no items", "Delete it"], expect: "Bin removed from list; no orphaned items remain" },
+      { id: "BINS-04", title: "Search / filter bins", steps: ["Type partial bin name in search", "Clear search"], expect: "List filters in real time; clearing restores full list" },
+      { id: "BINS-05", title: "Deep-link QR scan route", steps: ["Navigate to /bin/{any-bin-id} in browser"], expect: "Redirected to /scan/{bin-id} and bin contents shown" }
+    ]
+  },
+  {
+    id: "ITEMS",
+    title: "Item Management",
+    cases: [
+      { id: "ITEMS-01", title: "Add item to bin", steps: ["Open a bin", "Click 'Add Item'", "Fill name, quantity, tags", "Save"], expect: "Item appears in bin's item list with correct fields" },
+      { id: "ITEMS-02", title: "Edit item", steps: ["Click edit on an item", "Change quantity and description", "Save"], expect: "Changes saved; version counter increments (no optimistic-lock error)" },
+      { id: "ITEMS-03", title: "Delete item", steps: ["Delete an item from a bin"], expect: "Item removed; audit log entry created" },
+      { id: "ITEMS-04", title: "Upload item photo", steps: ["Edit an item", "Attach a valid JPG or PNG under 20 MB"], expect: "Thumbnail shown on item card; photo accessible on reload" },
+      { id: "ITEMS-05", title: "Oversized photo rejected", steps: ["Attempt to upload a file > 20 MB"], expect: "413 error or clear rejection message; item not corrupted" },
+      { id: "ITEMS-06", title: "Move items between bins", steps: ["Select one or more items", "Use 'Move to bin' action", "Choose target bin"], expect: "Items appear in target bin; removed from source" },
+      { id: "ITEMS-07", title: "Tag colors display correctly", steps: ["Assign tags with different colors to items", "View item list"], expect: "Tag chips show correct colors; colors consistent across views" }
+    ]
+  },
+  {
+    id: "PRINT",
+    title: "QR Label Printing",
+    cases: [
+      { id: "PRINT-01", title: "Single label — print preview opens", steps: ["Open any bin", "Click 'Print Label'", "Select default size, Single Label", "Click Print Now"], expect: "New window opens with QR code on left, bin name on right; dashed border visible" },
+      { id: "PRINT-02", title: "Multi-label on A4 — 3 cols layout", steps: ["Print Label → A4 paper → 21 labels → Print Now"], expect: "21 labels arranged in 3×7 grid; QR left, name right; dashed borders; no overflow" },
+      { id: "PRINT-03", title: "Multi-label on A4 — 6 labels", steps: ["Print Label → A4 paper → 6 labels → Print Now"], expect: "6 labels fit on page without clipping; labels sized correctly in mm" },
+      { id: "PRINT-04", title: "Multi-label on Letter paper", steps: ["Print Label → Letter paper → 4 labels → Print Now"], expect: "Page sized to 8.5″ × 11″; labels positioned correctly" },
+      { id: "PRINT-05", title: "Labels-per-page capped at page capacity", steps: ["Enter 999 for labels per page"], expect: "Page shows max that fits; no error thrown" },
+      { id: "PRINT-06", title: "Custom label size", steps: ["Select Custom… in size picker", "Enter 3 × 2 inches", "Single label preview"], expect: "QR and bin name render at correct proportions" }
+    ]
+  },
+  {
+    id: "EXPORT",
+    title: "Export & Backup",
+    cases: [
+      { id: "EXPORT-01", title: "Export CSV", steps: ["Admin menu → Export → CSV"], expect: "File downloads with all bins/items; cells with leading '=' prefixed with apostrophe" },
+      { id: "EXPORT-02", title: "Export XLSX", steps: ["Admin menu → Export → XLSX"], expect: "Valid Excel file; opens without formula-injection warnings" },
+      { id: "EXPORT-03", title: "Backup database", steps: ["Admin → Backup → Download backup"], expect: "File downloads; filename includes timestamp" },
+      { id: "EXPORT-04", title: "Backup requires admin", steps: ["Log in as non-admin", "Attempt GET /api/backup directly"], expect: "403 returned; no file served" },
+      { id: "EXPORT-05", title: "Backup retention listing", steps: ["Admin → Backup → Retention; verify list appears"], expect: "GET /api/backup/retention returns list only; no files deleted by the GET" }
+    ]
+  },
+  {
+    id: "SYNC",
+    title: "Sync & Conflicts",
+    cases: [
+      { id: "SYNC-01", title: "Sync conflicts list requires auth", steps: ["Log out", "GET /api/sync-conflicts directly"], expect: "403 returned when SERVICE_API_KEY is set" },
+      { id: "SYNC-02", title: "Optimistic lock conflict", steps: ["Open same item in two tabs", "Edit and save in tab 1", "Edit and save in tab 2 (stale version)"], expect: "Second save shows conflict error; data from tab 1 not lost" }
+    ]
+  },
+  {
+    id: "MOBILE",
+    title: "Mobile & Responsive",
+    cases: [
+      { id: "MOBILE-01", title: "App usable at 390px width", steps: ["Open app in browser DevTools at 390px width", "Navigate bins, add item"], expect: "No horizontal scroll; buttons and inputs accessible; text readable" },
+      { id: "MOBILE-02", title: "Take photo from mobile", steps: ["On a real phone, open item edit", "Tap camera icon"], expect: "Camera or file picker opens; photo attaches and saves" },
+      { id: "MOBILE-03", title: "Print label picker usable on mobile", steps: ["Open print label dialog on phone-width screen"], expect: "Dropdowns and inputs fit screen; no overflow" }
+    ]
+  },
+  {
+    id: "PERF",
+    title: "Performance & Error Handling",
+    cases: [
+      { id: "PERF-01", title: "Large bin (50+ items) loads", steps: ["Open a bin with 50+ items", "Scroll through all items"], expect: "Page loads under 3s; no visible jank" },
+      { id: "PERF-02", title: "404 page for unknown route", steps: ["Navigate to /nonexistent-path"], expect: "Graceful error page (not a stack trace or blank)" },
+      { id: "PERF-03", title: "App starts up cleanly", steps: ["Restart the app container", "Check startup logs"], expect: "No RuntimeError; startup WARNING logged if SERVICE_API_KEY unset" }
+    ]
+  }
+];
+
+let state = {};
+
+function loadState() {
+  try { const r = localStorage.getItem('kapaat-test-plan-v1'); state = r ? JSON.parse(r) : {}; } catch(e) { state = {}; }
+}
+function saveState() {
+  try { localStorage.setItem('kapaat-test-plan-v1', JSON.stringify(state)); } catch(e) {}
+}
+function getS(k, d) { return state[k] !== undefined ? state[k] : d; }
+function setS(k, v) { state[k] = v; saveState(); }
+
+function render() {
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+  PLAN.forEach(section => {
+    const collapsed = getS('sec-' + section.id, false);
+    const div = document.createElement('div');
+    div.className = 'section' + (collapsed ? ' collapsed' : '');
+    div.id = 'sec-' + section.id;
+    const passed = section.cases.filter(c => getS('v-' + c.id, '') === 'pass').length;
+    const done = section.cases.filter(c => getS('v-' + c.id, '') !== '').length;
+    const pct = section.cases.length ? (passed / section.cases.length * 100) : 0;
+    div.innerHTML = `
+      <div class="section-header" onclick="toggleSection('${section.id}')">
+        <span class="section-title">${section.title}</span>
+        <span class="section-badge">${done}/${section.cases.length}</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-progress"><div class="section-progress-bar" style="width:${pct}%"></div></div>
+      <div class="cases" id="cases-${section.id}"></div>
+    `;
+    const casesDiv = div.querySelector('.cases');
+    section.cases.forEach(c => {
+      const verdict = getS('v-' + c.id, '');
+      const note = getS('n-' + c.id, '');
+      const caseDiv = document.createElement('div');
+      caseDiv.className = 'case' + (verdict ? ' status-' + verdict : '');
+      caseDiv.id = 'case-' + c.id;
+      caseDiv.innerHTML = `
+        <div class="case-left">
+          <div class="case-id">${c.id}</div>
+          <div class="case-title">${c.title}</div>
+          <ol class="case-steps">${c.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+          <div class="case-expect">Expected: ${c.expect}</div>
+          <textarea class="note-input" id="note-${c.id}" placeholder="What failed? (paste error, PR link…)" onchange="setNote('${c.id}', this.value)">${note}</textarea>
+        </div>
+        <div class="verdict-btns">
+          <button class="vbtn pass${verdict==='pass'?' active':''}" onclick="setVerdict('${c.id}','pass')">Pass</button>
+          <button class="vbtn fail${verdict==='fail'?' active':''}" onclick="setVerdict('${c.id}','fail')">Fail</button>
+          <button class="vbtn skip${verdict==='skip'?' active':''}" onclick="setVerdict('${c.id}','skip')">Skip</button>
+        </div>
+      `;
+      casesDiv.appendChild(caseDiv);
+    });
+    container.appendChild(div);
+  });
+  renderStats();
+  renderBugs();
+}
+
+function toggleSection(id) {
+  const cur = getS('sec-' + id, false);
+  setS('sec-' + id, !cur);
+  document.getElementById('sec-' + id).classList.toggle('collapsed', !cur);
+}
+
+function setVerdict(caseId, verdict) {
+  const cur = getS('v-' + caseId, '');
+  const next = cur === verdict ? '' : verdict;
+  setS('v-' + caseId, next);
+  const el = document.getElementById('case-' + caseId);
+  el.className = 'case' + (next ? ' status-' + next : '');
+  el.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
+  if (next) el.querySelector('.vbtn.' + next)?.classList.add('active');
+  renderStats();
+  updateSectionProgress(caseId);
+}
+
+function setNote(caseId, val) { setS('n-' + caseId, val); }
+
+function updateSectionProgress(caseId) {
+  const sId = caseId.split('-')[0];
+  const section = PLAN.find(s => s.id === sId);
+  if (!section) return;
+  const passed = section.cases.filter(c => getS('v-' + c.id, '') === 'pass').length;
+  const done = section.cases.filter(c => getS('v-' + c.id, '') !== '').length;
+  const bar = document.querySelector('#sec-' + sId + ' .section-progress-bar');
+  if (bar) bar.style.width = (passed / section.cases.length * 100) + '%';
+  const badge = document.querySelector('#sec-' + sId + ' .section-badge');
+  if (badge) badge.textContent = done + '/' + section.cases.length;
+}
+
+function renderStats() {
+  const all = PLAN.flatMap(s => s.cases);
+  const pass = all.filter(c => getS('v-' + c.id, '') === 'pass').length;
+  const fail = all.filter(c => getS('v-' + c.id, '') === 'fail').length;
+  const skip = all.filter(c => getS('v-' + c.id, '') === 'skip').length;
+  document.getElementById('statPass').textContent = '✓ ' + pass;
+  document.getElementById('statFail').textContent = '✗ ' + fail;
+  document.getElementById('statSkip').textContent = '— ' + skip;
+  document.getElementById('statTotal').textContent = (pass+fail+skip) + ' / ' + all.length;
+}
+
+function renderBugs() {
+  const bugs = getS('bugs', []);
+  const list = document.getElementById('bugList');
+  document.getElementById('bugCount').textContent = bugs.length;
+  list.innerHTML = bugs.length
+    ? bugs.map((b, i) => `<div class="bug-item"><span>${b.desc}</span><span class="bug-pr">${b.pr||''}</span><button class="bug-del" onclick="delBug(${i})" title="Remove">×</button></div>`).join('')
+    : '<div class="empty-msg">No bugs filed yet</div>';
+}
+
+function addBug() {
+  const desc = document.getElementById('bugDesc').value.trim();
+  if (!desc) return;
+  const pr = document.getElementById('bugPr').value.trim();
+  const bugs = getS('bugs', []);
+  bugs.push({ desc, pr });
+  setS('bugs', bugs);
+  document.getElementById('bugDesc').value = '';
+  document.getElementById('bugPr').value = '';
+  renderBugs();
+}
+
+document.getElementById('bugDesc').addEventListener('keydown', e => { if (e.key === 'Enter') addBug(); });
+
+function delBug(i) {
+  const bugs = getS('bugs', []);
+  bugs.splice(i, 1);
+  setS('bugs', bugs);
+  renderBugs();
+}
+
+const versionEl = document.getElementById('versionInput');
+const urlEl = document.getElementById('envUrl');
+versionEl.value = getS('version', '');
+urlEl.value = getS('envUrl', '');
+versionEl.addEventListener('input', () => setS('version', versionEl.value));
+urlEl.addEventListener('input', () => setS('envUrl', urlEl.value));
+
+document.getElementById('dateLabel').textContent = new Date().toISOString().slice(0, 10);
+
+function resetAll() {
+  if (!confirm('Reset all results for this run?')) return;
+  state = { version: getS('version', ''), envUrl: getS('envUrl', '') };
+  saveState();
+  render();
+}
+
+loadState();
+render();
+</script>
+</body>
+</html>
