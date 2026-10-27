@@ -45,7 +45,7 @@ _attempts: dict[str, dict] = {}
 app = FastAPI(title=os.environ.get("APP_TITLE", "Kapaat"))
 
 # Application version - defaults to the latest released version.
-VERSION = os.getenv("APP_VERSION", "1.2.5")
+VERSION = os.getenv("APP_VERSION", "1.3.0")
 
 AUTH_SECRET_KEY = os.environ.get("AUTH_SECRET_KEY", "change-me-in-production")
 
