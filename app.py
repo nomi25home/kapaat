@@ -372,9 +372,9 @@ async def login_mfa(request: Request, email: str = Form(...)):
     allowed = [e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()]
     if allowed and email not in allowed:
         return templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "t": _LOCALE,
                 "VERSION": VERSION,
                 "error": "email not allowed for MFA",
@@ -388,9 +388,9 @@ async def login_mfa(request: Request, email: str = Form(...)):
     _send_otp_email(email, otp)
     # Render OTP entry form
     return templates.TemplateResponse(
+        request,
         "login.html",
         {
-            "request": request,
             "t": _LOCALE,
             "VERSION": VERSION,
             "step": "otp",
@@ -420,9 +420,9 @@ async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(.
     record = _mfa_store.get(email)
     if not record:
         return templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "t": _LOCALE,
                 "VERSION": VERSION,
                 "step": "otp",
@@ -436,9 +436,9 @@ async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(.
         del _mfa_store[email]
         _record_mfa_failure(email)
         return templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "t": _LOCALE,
                 "VERSION": VERSION,
                 "step": "otp",
@@ -450,9 +450,9 @@ async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(.
     if otp != expected_otp:
         _record_mfa_failure(email)
         return templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "t": _LOCALE,
                 "VERSION": VERSION,
                 "step": "otp",
@@ -950,9 +950,9 @@ async def login(request: Request):
         redirect_uri = BASE_URL.rstrip("/") + "/auth/callback"
         return await oauth.authentik.authorize_redirect(request, redirect_uri)
     return templates.TemplateResponse(
+        request,
         "login.html",
         {
-            "request": request,
             "t": _LOCALE,
             "VERSION": VERSION,
             "csrf_token": _csrf_token_for_session(request.session),
@@ -1070,9 +1070,9 @@ async def dashboard(request: Request, search: str = ""):
     items = cursor.fetchall()
     conn.close()
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "bins": bins,
             "items": items,
             "search": search,
@@ -1126,9 +1126,9 @@ async def scan_bin(request: Request, bin_id: str):
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(deep_link, safe='')}"
 
     return templates.TemplateResponse(
+        request,
         "scan.html",
         {
-            "request": request,
             "bin": target_bin,
             "items": items,
             "qr_url": qr_url,
