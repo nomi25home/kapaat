@@ -1,4 +1,3 @@
-# ruff: noqa
 import asyncio
 import io
 import json
@@ -11,8 +10,6 @@ import urllib.parse
 import zipfile
 from datetime import datetime
 from pathlib import Path
-
-from starlette.middleware.base import BaseHTTPMiddleware
 
 import pandas as pd
 import requests
@@ -35,10 +32,10 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-
-# Per‑IP auth attempt tracking for back‑off algorithm (v1.2.2)
+# Per-IP auth attempt tracking for back-off algorithm (v1.2.2)
 _attempts: dict[str, dict] = {}
 
 
@@ -234,7 +231,7 @@ app.add_middleware(
 )
 
 
-# Simple in‑memory store for email‑MFA codes (email -> (code, expiry))
+# Simple in-memory store for email-MFA codes (email -> (code, expiry))
 _mfa_store: dict[str, tuple[str, float]] = {}
 
 # Per-email OTP verification attempt tracking for exponential backoff.
@@ -286,7 +283,7 @@ def _record_mfa_failure(email: str) -> None:
 
 
 def _generate_otp() -> str:
-    """Generate a 6‑digit one‑time password."""
+    """Generate a 6-digit one-time password."""
     import secrets
 
     return f"{secrets.randbelow(1_000_000):06d}"
@@ -297,11 +294,11 @@ def _send_otp_email(email: str, code: str) -> None:
 
     The backend is selected by the ``MFA_EMAIL_BACKEND`` environment variable:
 
-    * ``smtp``      – send via SMTP (``MFA_SMTP_HOST``, ``MFA_SMTP_PORT``,
+    * ``smtp``      - send via SMTP (``MFA_SMTP_HOST``, ``MFA_SMTP_PORT``,
                       ``MFA_SMTP_USER``, ``MFA_SMTP_PASSWORD``).
-    * ``sendgrid``  – send via the SendGrid API (``MFA_SENDGRID_API_KEY``).
-    * ``log`` (dev) – print the OTP to stdout. **Never use in production.**
-    * ``none``      – fail closed: raise instead of silently dropping the OTP.
+    * ``sendgrid``  - send via the SendGrid API (``MFA_SENDGRID_API_KEY``).
+    * ``log`` (dev) - print the OTP to stdout. **Never use in production.**
+    * ``none``      - fail closed: raise instead of silently dropping the OTP.
 
     Unrecognised backends default to ``log`` with a warning so a misconfiguration
     is visible rather than silently insecure.
@@ -364,7 +361,7 @@ async def login_mfa(request: Request, email: str = Form(...)):
     """Start MFA login flow for a whitelisted email.
 
     * If the email is not in the ALLOWED_EMAILS whitelist, we reject immediately.
-    * If the email is whitelisted, we generate a one‑time OTP, store it in
+    * If the email is whitelisted, we generate a one-time OTP, store it in
       ``_mfa_store`` with a short expiration, and send it via ``_send_otp_email``.
     * Afterwards we render the OTP entry form.
     """
@@ -401,13 +398,13 @@ async def login_mfa(request: Request, email: str = Form(...)):
 
 @app.post("/login-mfa/verify")
 async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(...)):
-    """Verify the OTP for a previously‑sent MFA challenge.
+    """Verify the OTP for a previously-sent MFA challenge.
 
     * Looks up the stored OTP in ``_mfa_store``.
     * If the OTP matches and hasn't expired, we create a session for the user
       (the same session shape used by the OIDC flow) and mark ``is_admin``
       based on the ADMIN_GROUP membership (if any).
-    * On success we redirect to ``/`` – otherwise we return the OTP form with an error.
+    * On success we redirect to ``/`` - otherwise we return the OTP form with an error.
     """
     email = email.strip().lower()
 
@@ -461,13 +458,13 @@ async def verify_mfa(request: Request, email: str = Form(...), otp: str = Form(.
             },
             status_code=403,
         )
-    # OTP valid – clean up store and reset the per-email attempt counter.
+    # OTP valid - clean up store and reset the per-email attempt counter.
     del _mfa_store[email]
     _mfa_attempts.pop(email, None)
 
-    # Build a minimal user session – we don't have group info, so admin is False.
+    # Build a minimal user session - we don't have group info, so admin is False.
     request.session["user"] = {"sub": email, "email": email, "name": email, "groups": []}
-    # Admin check – only whitelist users can be admins if ADMIN_GROUP is set.
+    # Admin check - only whitelist users can be admins if ADMIN_GROUP is set.
     request.session["is_admin"] = False
     return RedirectResponse("/")
 
@@ -490,17 +487,6 @@ def _require_auth_html(request: Request):
     if not user:
         return RedirectResponse("/login")
     return user
-
-
-def get_actor(request: Request | None = None) -> str:
-    """Return the current user's identity for audit logging.
-    Falls back to 'anonymous' when no session or OIDC disabled."""
-    if request is None:
-        return "anonymous"
-    user = request.session.get("user")
-    if not user:
-        return "anonymous"
-    return user.get("name") or user.get("email") or user.get("sub") or "anonymous"
 
 
 def require_admin(request: Request) -> None:
@@ -962,7 +948,7 @@ async def login(request: Request):
 
 @app.get("/auth/callback", name="auth_callback")
 async def auth_callback(request: Request):
-    import time as _time  # noqa: PLC0415 — needed for _attempts timestamp
+    import time as _time
 
     token = await oauth.authentik.authorize_access_token(request)
     user = token.get("userinfo") or await oauth.authentik.userinfo(token=token)
@@ -1084,7 +1070,10 @@ async def dashboard(request: Request, search: str = ""):
             "L": {
                 "bulk": {
                     "import_csv_title": "Bulk Import CSV",
-                    "import_csv_desc": "Upload a CSV file to add multiple items at once. Required columns: bin_id, name, category, quantity.",
+                    "import_csv_desc": (
+                        "Upload a CSV file to add multiple items at once."
+                        " Required columns: bin_id, name, category, quantity."
+                    ),
                     "apply": "Apply",
                     "no_tags": "No tags found",
                 },

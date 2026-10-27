@@ -41,7 +41,9 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env — set BASE_URL to http://localhost:8096 at minimum
+# Generate the required secret and set BASE_URL at minimum
+echo "AUTH_SECRET_KEY=$(openssl rand -base64 32)" >> .env
+# Edit .env and update BASE_URL if your server is not localhost
 
 uvicorn app:app --reload --port 8096
 ```
@@ -65,6 +67,7 @@ services:
       - kapaat_data:/data
     environment:
       - BASE_URL=https://storage.yourdomain.com
+      - AUTH_SECRET_KEY=                              # required: openssl rand -base64 32
       - N8N_WEBHOOK_URL=                              # leave blank to disable
       - TZ=America/New_York
 
@@ -166,8 +169,38 @@ curl -H "Authorization: Bearer YOUR_SERVICE_API_KEY" \
      -o kapaat-backup.zip https://bins.yourdomain.com/api/backup/download
 ```
 
+**How do I restore from a backup?**
+
+*From the UI `.zip` backup* (DB + photos):
+```bash
+# Extract the zip into a new Docker volume
+docker volume create kapaat_data_restored
+docker run --rm \
+  -v kapaat_data_restored:/data \
+  -v $(pwd):/backup \
+  alpine sh -c "unzip /backup/kapaat_backup_*.zip -d /data"
+
+# Start the app pointing at the restored volume
+docker run -d -p 8096:8096 \
+  -v kapaat_data_restored:/data \
+  -e BASE_URL=http://localhost:8096 \
+  -e AUTH_SECRET_KEY=$(openssl rand -base64 32) \
+  ghcr.io/nomi25home/kapaat:1
+```
+
+*From a shell `tar.gz` backup:*
+```bash
+docker volume create kapaat_data_restored
+docker run --rm \
+  -v kapaat_data_restored:/data \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/kapaat-backup-YYYY-MM-DD.tar.gz -C /
+```
+
+> **Note:** CSV import (`POST /api/import-csv`) restores item rows only — photos and bin structure are not included.
+
 **How do I move to a new host?**  
-Copy the backup archive to the new host, extract it into a Docker volume, and start the container pointing at that volume. No migrations needed — the app runs `ALTER TABLE` migrations on startup automatically.
+Follow the restore steps above on the new host using a fresh backup from the old one. No schema migrations are needed — the app runs `ALTER TABLE` migrations on startup automatically.
 
 **Can I use a different database?**  
 Not currently — SQLite is intentional to keep the deployment footprint to a single file. Contributions adding a Postgres adapter are welcome.
