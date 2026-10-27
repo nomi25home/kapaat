@@ -307,7 +307,7 @@ Columns added in later schema versions (`room`, `tags`, `item_photo`, `bin_photo
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md). Please read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before participating.
 
-Before cutting a release, run through the manual test plan in [`docs/release-test-plan.html`](docs/release-test-plan.html) — open it in any browser, no server required.
+Before cutting a release, run through the manual test plan in [`docs/release-test-plan.html`](docs/release-test-plan.html) — open it in any browser, no server required. When creating a release tag, use the `v` prefix (e.g. `v1.3.6`) so CI triggers the Docker image build automatically.
 
 ## Security
 
