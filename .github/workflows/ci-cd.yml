@@ -33,6 +33,16 @@ jobs:
       - name: Run Ruff Formatter Check
         run: ruff format --check .
 
+      - name: Version consistency check
+        run: |
+          pyproject_ver=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          version_file=$(cat VERSION)
+          if [ "$pyproject_ver" != "$version_file" ]; then
+            echo "Version mismatch: pyproject.toml=$pyproject_ver, VERSION=$version_file"
+            exit 1
+          fi
+          echo "Versions match: $pyproject_ver"
+
   test:
     name: Test Suite (pytest)
     runs-on: ubuntu-latest
