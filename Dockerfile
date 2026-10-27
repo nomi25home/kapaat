@@ -5,6 +5,8 @@ WORKDIR /app
 # Optional build arg: set to "1" to compile pysqlcipher3 for DB_ENCRYPTION_KEY support.
 # Example: docker build --build-arg ENABLE_SQLCIPHER=1 .
 ARG ENABLE_SQLCIPHER=0
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 
 COPY requirements.txt .
 
