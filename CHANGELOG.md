@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [1.3.5] — 2026-10-27
+
+### Added
+
+- CI lint job now verifies that `pyproject.toml` version matches the `VERSION` file, preventing silent version drift.
+
+---
+
+## [1.3.4] — 2026-10-27
+
+### Fixed
+
+- `docker-compose.yml` now passes `AUTH_SECRET_KEY` and `BASE_URL` via env-var substitution so the app starts correctly without a `RuntimeError`.
+- README "Building from source" `docker run` example now includes `-e AUTH_SECRET_KEY=$(openssl rand -base64 32)`.
+- `pyproject.toml` version and `CHANGELOG.md` synchronized to match the v1.3.3 release.
+
+---
+
 ## [1.3.3] — 2026-10-27
 
 ### Fixed
