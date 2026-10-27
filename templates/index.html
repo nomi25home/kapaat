@@ -1107,64 +1107,47 @@ function printLabel(binId, qrUrl, size, options = {}) {
   } = options;
 
   const [labelW, labelH] = labelSize.split("x").map(Number);
-  const labelWpx = labelW * 96, labelHpx = labelH * 96;
-  const qrSize = Math.round(labelW * 96);
+  // Work in mm throughout for reliable print rendering
+  const labelWmm = labelW * 25.4, labelHmm = labelH * 25.4;
+
+  const paperDims = { A4: [210, 297], Letter: [215.9, 279.4] };
+  const [paperWmm, paperHmm] = paperDims[paperSize] || [labelWmm, labelHmm];
+
+  // Text strip: 15% of label height, min 5 mm
+  const textHmm = Math.max(5, labelHmm * 0.15);
+  const qrHmm   = labelHmm - textHmm;
   const fontSize = Math.round(14 * Math.min(labelW, labelH) / 1.5);
-  const textH = Math.max(18, Math.round(fontSize * 1.6));  // strip below QR for bin name
-  const qrH = labelHpx - textH;                            // QR image height
 
-  // Paper dimensions in inches
-  const paperDims = {
-    A4:   [8.27, 11.69],
-    Letter: [8.5,  11.0],
-    none: [labelW, labelH]  // single label, no paper
-  };
-  const [paperW, paperH] = paperDims[paperSize] || paperDims.none;
-  const paperWpx = paperW * 96, paperHpx = paperH * 96;
+  // How many labels fit, capped at requested count
+  const colsFit = Math.floor(paperWmm / labelWmm);
+  const rowsFit = Math.floor(paperHmm / labelHmm);
+  const totalLabels = paperSize === "none" ? 1 : Math.min(labelsPerPage, colsFit * rowsFit);
 
-  // Calculate grid layout for multiple labels
-  let cols, rows;
-  if (paperSize === "none" || labelsPerPage <= 1) {
-    cols = 1; rows = 1;
-  } else {
-    // Fit as many as possible in a grid
-    cols = Math.floor(paperW / labelW);
-    rows = Math.floor(paperH / labelH);
-    const maxFit = cols * rows;
-    if (labelsPerPage > maxFit) labelsPerPage = maxFit;
-    // Adjust grid to fit exactly labelsPerPage
-    cols = Math.ceil(Math.sqrt(labelsPerPage * (paperW / paperH)));
-    rows = Math.ceil(labelsPerPage / cols);
-  }
+  const labelHtml = `
+    <div style="width:${labelWmm}mm;height:${labelHmm}mm;box-sizing:border-box;
+                border:1px dashed #aaa;display:flex;flex-direction:column;
+                break-inside:avoid;page-break-inside:avoid;overflow:hidden;flex-shrink:0">
+      <img src="${qrUrl}" style="width:${labelWmm}mm;height:${qrHmm}mm;display:block;flex-shrink:0">
+      <div style="height:${textHmm}mm;display:flex;align-items:center;justify-content:center;
+                  border-top:1px dashed #aaa;font-size:${fontSize}px;font-weight:700;
+                  font-family:monospace;letter-spacing:.05em;white-space:nowrap;
+                  overflow:hidden;text-overflow:ellipsis;padding:0 2mm;
+                  background:#fff;color:#000">${binId}</div>
+    </div>`.repeat(totalLabels);
 
-  const totalLabels = paperSize === "none" ? 1 : Math.min(labelsPerPage, cols * rows);
+  const printBtn = paperSize === "none"
+    ? `<button onclick="window.print();window.close()" style="position:fixed;bottom:8px;right:8px;padding:6px 14px;font-size:12px;cursor:pointer;border-radius:4px;border:1px solid #ccc;z-index:10">Print Now</button>`
+    : '';
 
-  const win = window.open("", "_blank", `width=${Math.min(paperWpx + 40, 1200)},height=${Math.min(paperHpx + 40, 900)}`);
-
-  // Build label HTML for each position
-  const labelsHtml = [];
-  for (let i = 0; i < totalLabels; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const left = col * labelWpx;
-    const top = row * labelHpx;
-    labelsHtml.push(`
-      <div style="position:absolute;left:${left}px;top:${top}px;width:${labelWpx}px;height:${labelHpx}px;box-sizing:border-box;border:1px dashed #aaa;page-break-inside:avoid;overflow:hidden">
-        <img src="${qrUrl}" style="width:${labelWpx}px;height:${qrH}px;display:block">
-        <div style="height:${textH}px;display:flex;align-items:center;justify-content:center;border-top:1px dashed #aaa;font-size:${fontSize}px;font-weight:700;font-family:monospace;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;background:#fff;color:#000">${binId}</div>
-      </div>
-    `);
-  }
-
-  const printBtn = paperSize === "none" ? `
-    <button class="print-btn" onclick="window.print();window.close()" style="position:fixed;bottom:8px;right:8px;padding:6px 14px;font-size:12px;cursor:pointer;border-radius:4px;border:1px solid #ccc;z-index:10">Print Now</button>
-  ` : '';
-
-  win.document.write(`<!doctype html><html><head><title>${binId} × ${totalLabels}</title><style>
-    @page { margin: 0; size: ${paperW}in ${paperH}in; }
-    @media print { .print-btn { display: none !important; } body { margin: 0; } }
-  </style></head><body style="margin:0;width:${paperWpx}px;height:${paperHpx}px;background:#fff;position:relative">
-    ${labelsHtml.join('')}
+  const win = window.open("", "_blank");
+  win.document.write(`<!doctype html><html><head><title>${binId} \xd7 ${totalLabels}</title><style>
+    *  { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { margin: 0; size: ${paperWmm}mm ${paperHmm}mm; }
+    body { width: ${paperWmm}mm; background: #fff; }
+    .sheet { display: flex; flex-wrap: wrap; align-content: flex-start; width: ${paperWmm}mm; }
+    @media print { button { display: none !important; } }
+  </style></head><body>
+    <div class="sheet">${labelHtml}</div>
     ${printBtn}
   </body></html>`);
   win.document.close();
