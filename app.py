@@ -140,7 +140,7 @@ if DB_ENCRYPTION_KEY:
         ) from exc
 
 # Public URL used to build QR code deep-links (must be reachable from phones on the same network).
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8096")
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8096").rstrip("/")
 
 # Optional: n8n webhook for Google Sheets sync. Leave blank to disable.
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "")
@@ -1641,8 +1641,9 @@ async def download_full_backup(request: Request):
 
 
 @app.get("/api/backup/retention")
-async def backup_retention():
+async def backup_retention(request: Request):
     """List backup archives in /data/backups/ (read-only, no deletion)."""
+    require_admin(request)
     backups_dir = Path("/data/backups")
     backups_dir.mkdir(parents=True, exist_ok=True)
     files = sorted(backups_dir.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)

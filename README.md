@@ -45,6 +45,7 @@ cp .env.example .env
 echo "AUTH_SECRET_KEY=$(openssl rand -base64 32)" >> .env
 # Edit .env and update BASE_URL if your server is not localhost
 
+set -a && source .env && set +a
 uvicorn app:app --reload --port 8096
 ```
 
@@ -178,7 +179,7 @@ docker volume create kapaat_data_restored
 docker run --rm \
   -v kapaat_data_restored:/data \
   -v $(pwd):/backup \
-  alpine sh -c "unzip /backup/kapaat_backup_*.zip -d /data"
+  alpine sh -c "apk add --no-cache unzip && unzip /backup/kapaat_backup_*.zip -d /data"
 
 # Start the app pointing at the restored volume
 docker run -d -p 8096:8096 \
