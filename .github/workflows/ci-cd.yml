@@ -50,6 +50,13 @@ jobs:
           pip install fastapi uvicorn jinja2 pandas openpyxl requests python-multipart \
             aiofiles "authlib>=1.3.0" "httpx>=0.27.0" "itsdangerous>=2.1.2" pytest
 
+      - name: Import smoke test
+        env:
+          AUTH_SECRET_KEY: ci-smoke-test-not-a-real-secret
+          DB_PATH: /tmp/smoke.db
+          PHOTOS_DIR: /tmp/smoke-photos
+        run: python -c "import app; print('app import OK')"
+
       - name: Run tests
         env:
           PYTHONPATH: .

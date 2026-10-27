@@ -175,8 +175,7 @@ select.in { cursor: pointer; }
   <div class="card" style="margin-bottom:12px">
     <h4>QR Label</h4>
     <div class="qr-center">
-      {% set deep_link = "http://192.168.74.45:8099/bin/" + single_bin.bin_id %}
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={{ deep_link | urlencode }}" width="180" height="180" alt="QR">
+      <img src="{{ single_bin.qr_url }}" width="180" height="180" alt="QR">
       <span class="mono" style="font-size:14px;font-weight:600;letter-spacing:.06em">{{ single_bin.bin_id }}</span>
     </div>
   </div>
