@@ -1115,8 +1115,9 @@ function printLabel(binId, qrUrl, size, options = {}) {
   const [paperWmm, paperHmm] = paperDims[paperSize] || [labelWmm, labelHmm];
 
   // How many labels fit, capped at requested count
-  const colsFit = Math.floor(paperWmm / labelWmm);
-  const rowsFit = Math.floor(paperHmm / labelHmm);
+  const gapMm = 3; // mm between labels on a multi-label sheet
+  const colsFit = Math.floor((paperWmm + gapMm) / (labelWmm + gapMm));
+  const rowsFit = Math.floor((paperHmm + gapMm) / (labelHmm + gapMm));
   const totalLabels = paperSize === "none" ? 1 : Math.min(labelsPerPage, colsFit * rowsFit);
 
   // Layout: QR on the left (square), bin name on the right.
@@ -1148,7 +1149,7 @@ function printLabel(binId, qrUrl, size, options = {}) {
     *  { box-sizing: border-box; margin: 0; padding: 0; }
     @page { margin: 0; size: ${paperWmm}mm ${paperHmm}mm; }
     body { width: ${paperWmm}mm; background: #fff; }
-    .sheet { display: flex; flex-wrap: wrap; align-content: flex-start; width: ${paperWmm}mm; }
+    .sheet { display: flex; flex-wrap: wrap; align-content: flex-start; gap: ${gapMm}mm; width: ${paperWmm}mm; }
     @media print { button { display: none !important; } }
   </style></head><body>
     <div class="sheet">${labelHtml}</div>
@@ -1164,7 +1165,8 @@ function openPrintSizePicker(binId, qrUrl) {
     <div class="mb">
       <div><label class="f">${L.bin.size_label}</label>
         <select class="in" id="printSize" style="height:36px">
-          <option value="2.75x1.5" selected>2.75" × 1.5" (A4 × 3 cols)</option>
+          <option value="1.89x1.18" selected>48mm × 30mm (tape label)</option>
+          <option value="2.75x1.5">2.75" × 1.5" (A4 × 3 cols)</option>
           <option value="2x1">2" × 1"</option>
           <option value="3x1.5">3" × 1.5"</option>
           <option value="4x2">4" × 2"</option>
@@ -1214,8 +1216,9 @@ function openPrintSizePicker(binId, qrUrl) {
     const paperDims = { A4: [8.27, 11.69], Letter: [8.5, 11.0] };
     if (paperDims[paper]) {
       const [pw, ph] = paperDims[paper];
-      const cols = Math.floor(pw / lw);
-      const rows = Math.floor(ph / lh);
+      const gapIn = 3 / 25.4; // 3mm gap between labels, converted to inches
+      const cols = Math.floor((pw + gapIn) / (lw + gapIn));
+      const rows = Math.floor((ph + gapIn) / (lh + gapIn));
       const max = cols * rows;
       const count = parseInt($("printCount").value) || 1;
       $("printFitHint").textContent = `Max fit: ${max} (${cols}×${rows})${count > max ? ' — will be capped' : ''}`;
