@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [1.3.1] — 2026-10-27
+
+### Fixed
+
+- All HTML routes (`/`, `/login`, `/scan/{bin_id}`, and OTP error paths) returned HTTP 500 due to a breaking API change in Starlette 1.7.0: `TemplateResponse` now requires `request` as its first positional argument rather than a key inside the context dict. Updated all 8 call sites in `app.py`. (#15)
+
+---
+
 ## [1.3.0] — 2026-10-27
 
 This release completes a full security audit remediation (25 findings across 4 PRs), adds horizontal QR label printing, and ships a manual release test plan.
@@ -116,7 +124,8 @@ This release completes a full security audit remediation (25 findings across 4 P
 - Environment-variable configuration (`BASE_URL`, `N8N_WEBHOOK_URL`, `DB_PATH`, `PHOTOS_DIR`, `APP_TITLE`)
 - MIT License, `.env.example`, `.dockerignore`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
 
-[Unreleased]: https://github.com/nomi25home/kapaat/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/nomi25home/kapaat/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/nomi25home/kapaat/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/nomi25home/kapaat/compare/v1.2.5...v1.3.0
 [1.2.2]: https://github.com/nomi25home/kapaat/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/nomi25home/kapaat/compare/v1.2.0...v1.2.1
