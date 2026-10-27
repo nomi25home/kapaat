@@ -54,6 +54,7 @@ jobs:
         env:
           AUTH_SECRET_KEY: ci-smoke-test-not-a-real-secret
           DB_PATH: /tmp/smoke.db
+          PHOTOS_DIR: /tmp/smoke-photos
         run: python -c "import app; print('app import OK')"
 
       - name: Run tests
