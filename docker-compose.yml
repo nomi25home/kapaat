@@ -13,6 +13,8 @@ services:
     environment:
       - TZ=America/New_York
       - PYTHONUNBUFFERED=1
+      - BASE_URL=${BASE_URL:-http://localhost:8099}
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY}  # required: generate with: openssl rand -base64 32
 
 volumes:
   garage_data:

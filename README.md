@@ -83,6 +83,7 @@ docker build -t kapaat .
 docker run -d -p 8096:8096 \
   -v kapaat_data:/data \
   -e BASE_URL=http://192.168.1.10:8096 \
+  -e AUTH_SECRET_KEY=$(openssl rand -base64 32) \
   kapaat
 ```
 
