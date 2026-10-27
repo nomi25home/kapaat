@@ -47,7 +47,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install "fastapi==0.110.0" uvicorn jinja2 pandas openpyxl requests python-multipart \
+          pip install fastapi uvicorn jinja2 pandas openpyxl requests python-multipart \
             aiofiles "authlib>=1.3.0" "httpx>=0.27.0" "itsdangerous>=2.1.2" pytest
 
       - name: Import smoke test
