@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.nomi25home.kapaat</string>
+    <key>CFBundleName</key>
+    <string>Kapaat</string>
+    <key>CFBundleDisplayName</key>
+    <string>Kapaat</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleExecutable</key>
+    <string>Kapaat</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- Allow loopback HTTP for the embedded server -->
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2025 nomi25home. MIT License.</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+</dict>
+</plist>
