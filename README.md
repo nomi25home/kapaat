@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688)](https://fastapi.tiangolo.com/)
+[![macOS app](https://img.shields.io/badge/macOS%20app-kapaat--macos-lightgrey?logo=apple)](https://github.com/nomi25home/kapaat-macos)
 
 ---
 
