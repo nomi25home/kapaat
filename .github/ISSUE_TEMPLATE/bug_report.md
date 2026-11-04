@@ -22,7 +22,9 @@ A clear and concise description of what you expected to happen.
 - **OS / Host:** [e.g. Unraid, Proxmox LXC, Ubuntu, Synology]
 - **Docker / Compose Version:** [e.g. Docker 24.0.7, Compose v2.21.0]
 - **Browser used:** [e.g. Chrome Mobile iOS, Safari, Firefox Desktop]
-- **Kapaat version/commit:** [e.g. v0.1.0 or commit hash]
+- **Kapaat version:** [image tag from `docker compose images`, e.g. 2.0.0]
+- **Sign-in method:** [email code / passkey / single sign-on]
+- **Phone app or browser tab:** [installed app / browser]
 
 ### Logs & Configuration Context
-If applicable, add terminal logs from `docker compose logs` or browser console errors to help debug your issue. Please ensure no private variables (like domain names or webhook tokens) are exposed.
+If applicable, add logs from `docker compose logs api web` or browser console errors to help debug your issue. Please ensure no private variables (like domain names or webhook tokens) are exposed.

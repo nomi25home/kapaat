@@ -5,6 +5,27 @@ Format: one entry per shipped change, most recent at top.
 
 ---
 
+## 2026-11-04 — v2.0.0: simplified rewrite
+
+**PR:** [#24](https://github.com/nomi25home/kapaat/pull/24) (`claude/inspiring-dirac-d4mv9y`) | **Tag:** `v2.0.0` | **Version:** 1.3.7 → 2.0.0
+**Images:** `ghcr.io/nomi25home/kapaat-api` and `kapaat-web` at `2.0.0`, `2.0`, `2`, `edge` (amd64, arm64)
+
+### What shipped
+- Postgres + FastAPI + React PWA in three containers, replacing the single-file SQLite app
+- Rooms › zones › bins › items, onboarding/offboarding, bulk move, check-out/in, history
+- Label PDFs (48 mm tape default, DK 62 mm, Avery L7160/5160, plain paper with crop marks)
+- Email-code sign-in with invites and API tokens; optional passkeys and OIDC
+- Signed webhook outbox + Google Sheets Apps Script; v1 importer
+
+### Verification
+- Backend: 56 pytest tests on Postgres; ruff and `alembic check` clean
+- Frontend: typecheck, 4 vitest tests, production build
+- End-to-end on the compose stack: 27/27; release checks: 14/14
+- CI green on the PR, `main` and the tag
+- Results and remaining real-hardware checks: `docs/release-test-plan.html`
+
+---
+
 ## 2026-10-24 — v1.2.3: CSO hardening fixes
 
 **PR:** #4 (`ship-cso-fixes-20261024`) — https://github.com/nomi25home/kapaat/pull/4

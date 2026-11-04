@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| latest (`main`) | ✅ |
-| older tags | ❌ — please upgrade |
+| 2.x (latest release and `main`) | ✅ |
+| 1.x | ❌ — please upgrade ([migration guide](../docs/migration-from-v1.md)) |
 
 ## Reporting a Vulnerability
 
@@ -13,7 +13,7 @@
 
 To report a security issue responsibly:
 
-1. Email **nomi25home@gmail.com** with the subject line `[SECURITY] garage-storage — <brief description>`.
+1. Email **nomi25home@gmail.com** with the subject line `[SECURITY] Kapaat — <brief description>`.
 2. Include:
    - A clear description of the vulnerability and its potential impact.
    - Steps to reproduce (proof-of-concept if possible).
@@ -26,13 +26,19 @@ To report a security issue responsibly:
 
 This project is a self-hosted homelab application. Typical concerns include:
 
-- Unauthenticated API endpoints allowing data exfiltration or modification.
-- Path traversal or arbitrary file read/write via photo upload endpoints.
+- API endpoints reachable without signing in, or member accounts reaching admin-only actions.
+- Weaknesses in email-code sign-in (guessing, replay, account enumeration), sessions, CSRF protection, passkeys or OIDC.
+- API tokens that can do more than their scope (read-only tokens writing).
+- Path traversal or arbitrary file read/write via photo upload or download.
 - SQL injection in search or filter parameters.
-- Stored XSS in item names, categories, or tags rendered in the UI.
+- Stored XSS in item, bin, tag or location names.
+- Formula injection in CSV exports or the Google Sheets webhook payload.
+- Webhook signing flaws (forged or replayable deliveries).
 
 ## Out of Scope
 
 - Vulnerabilities that require physical access to the host machine.
 - Issues in upstream dependencies (report directly to those maintainers; open a Dependabot PR here as well).
-- Denial-of-service against a self-hosted instance with no rate limiting (by design for homelab use).
+- Denial-of-service against a self-hosted instance (rate limits exist for sign-in only).
+- Server-side requests made by the webhook: its URL is set by an admin, who is trusted.
+- Deployments exposed over plain HTTP; run Kapaat behind HTTPS with `COOKIE_SECURE=true`.

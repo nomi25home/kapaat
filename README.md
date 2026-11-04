@@ -63,7 +63,7 @@ Restore into a fresh install: start only the database (`docker compose up -d db`
 
 ### Upgrading from v1
 
-See [docs/migration-from-v1.md](docs/migration-from-v1.md). Old QR labels keep working. v1 images stay available as `ghcr.io/nomi25home/kapaat:1`.
+See the [v2.0.0 release notes](docs/release-notes/v2.0.0.md) and [docs/migration-from-v1.md](docs/migration-from-v1.md). Old QR labels keep working. v1 images stay available as `ghcr.io/nomi25home/kapaat:1`.
 
 ## Configuration
 
@@ -114,7 +114,7 @@ cd frontend && npm ci && npm run dev
 npm run typecheck && npm test
 ```
 
-See [CONTRIBUTING](.github/CONTRIBUTING.md) and [SECURITY](.github/SECURITY.md).
+See [CONTRIBUTING](.github/CONTRIBUTING.md), [SECURITY](.github/SECURITY.md), the [design system](DESIGN.md), the [roadmap](ROADMAP.md), and the [release test plan](docs/release-test-plan.html) (open it in a browser to tick off checks).
 
 ## License
 

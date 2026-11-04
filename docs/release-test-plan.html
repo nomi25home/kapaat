@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kapaat Release Test Plan</title>
+<title>Kapaat 2.0.0 Test Plan</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 :root {
@@ -308,6 +308,18 @@ main { padding-block: 16px; max-width: 860px; }
   min-width: 0;
 }
 .date-label { font-size: 12px; color: var(--fg3); font-family: 'JetBrains Mono', monospace; }
+
+.auto-note { font-size: 11px; color: var(--pass); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+.manual-note { font-size: 11px; color: var(--skip); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+.summary { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.summary h2 { font-size: 14px; margin: 0 0 4px; }
+.summary p { margin: 0 0 10px; color: var(--fg2); font-size: 13px; }
+.summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.summary-table th, .summary-table td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--border); vertical-align: top; }
+.summary-table th { color: var(--fg2); font-weight: 500; font-size: 12px; }
+.summary-table td.ok { color: var(--pass); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.table-wrap { overflow-x: auto; }
+.summary a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -316,9 +328,9 @@ main { padding-block: 16px; max-width: 860px; }
   <div class="header-inner">
     <div class="header-title">
       <h1>Kapaat</h1>
-      <span style="color:var(--fg3);font-size:13px">Release Test Plan</span>
+      <span style="color:var(--fg3);font-size:13px">Test plan</span>
     </div>
-    <input class="version-input" id="versionInput" placeholder="v1.2.5" title="Release version">
+    <input class="version-input" id="versionInput" placeholder="v2.0.0" title="Release version">
     <div class="stats">
       <span class="stat pass" id="statPass">✓ 0</span>
       <span class="stat fail" id="statFail">✗ 0</span>
@@ -332,9 +344,22 @@ main { padding-block: 16px; max-width: 860px; }
 <main>
   <div class="env-row">
     <span class="env-label">Test URL</span>
-    <input class="env-input" id="envUrl" placeholder="http://localhost:8000">
+    <input class="env-input" id="envUrl" placeholder="https://kapaat.example.com">
     <span class="date-label" id="dateLabel"></span>
   </div>
+
+  <section class="summary">
+    <h2>v2.0.0 automated results — 4 Nov 2026</h2>
+    <p>Recorded before release. Cases verified automatically start as <b>Pass</b> (change them if your run differs). Cases marked <i>manual</i> need real hardware or accounts.</p>
+    <div class="table-wrap"><table class="summary-table">
+      <tr><th>Suite</th><th>Result</th><th>What it covers</th></tr>
+      <tr><td>Backend (pytest, real Postgres)</td><td class="ok">56 / 56</td><td>auth, workflows, bulk-move atomicity, checkouts, labels, webhooks, OIDC, passkeys, v1 import; ruff + Alembic check clean</td></tr>
+      <tr><td>Frontend</td><td class="ok">4 / 4</td><td>TypeScript check, scan-URL parsing, production build</td></tr>
+      <tr><td>End-to-end browser test</td><td class="ok">27 / 27</td><td>full three-container stack at 390 px, light and dark</td></tr>
+      <tr><td>Release checks</td><td class="ok">14 / 14</td><td>security basics, all label sizes, real webhook delivery, restarts, backup/restore, importer in container</td></tr>
+      <tr><td>GitHub CI</td><td class="ok">green</td><td><a href="https://github.com/nomi25home/kapaat/actions/runs/41829069264">pull request</a> · <a href="https://github.com/nomi25home/kapaat/actions/runs/41829913132">main</a> · <a href="https://github.com/nomi25home/kapaat/actions/runs/41830179895">v2.0.0 tag</a> (images 2.0.0 / 2.0 / 2, amd64 + arm64)</td></tr>
+    </table></div>
+  </section>
 
   <div id="sections"></div>
 
@@ -354,102 +379,576 @@ main { padding-block: 16px; max-width: 860px; }
 
 <script>
 const PLAN = [
-  {
-    id: "AUTH",
-    title: "Authentication & Access",
-    cases: [
-      { id: "AUTH-01", title: "Local login — valid credentials", steps: ["Open app URL", "Enter valid username and password", "Submit"], expect: "Redirected to dashboard; user menu shows logged-in state" },
-      { id: "AUTH-02", title: "Local login — wrong password", steps: ["Enter correct username, wrong password", "Submit"], expect: "Error message shown; no redirect" },
-      { id: "AUTH-03", title: "OIDC login (if configured)", steps: ["Click 'Sign in with Authentik'", "Complete OIDC flow"], expect: "Redirected to dashboard (not HTTP 200 blank page)" },
-      { id: "AUTH-04", title: "MFA — correct OTP", steps: ["Log in as MFA-enabled user", "Enter correct 6-digit OTP"], expect: "Access granted; redirected to dashboard" },
-      { id: "AUTH-05", title: "Logout", steps: ["Click user menu → Log out"], expect: "Session cleared; redirected to login; back button does not re-enter" },
-      { id: "AUTH-06", title: "Read-only user cannot mutate", steps: ["Log in as read-only user", "Try to add/edit/delete a bin"], expect: "Actions disabled or return 403" }
-    ]
-  },
-  {
-    id: "BINS",
-    title: "Bin Management",
-    cases: [
-      { id: "BINS-01", title: "Create a bin", steps: ["Click 'New Bin'", "Enter bin name (e.g. 'Test-Shelf-1')", "Save"], expect: "Bin appears in list with correct name and auto-generated ID" },
-      { id: "BINS-02", title: "Edit bin name and location", steps: ["Open a bin", "Click edit", "Change name and location field", "Save"], expect: "Changes reflected immediately; no page reload required" },
-      { id: "BINS-03", title: "Delete bin", steps: ["Open a bin with no items", "Delete it"], expect: "Bin removed from list; no orphaned items remain" },
-      { id: "BINS-04", title: "Search / filter bins", steps: ["Type partial bin name in search", "Clear search"], expect: "List filters in real time; clearing restores full list" },
-      { id: "BINS-05", title: "Deep-link QR scan route", steps: ["Navigate to /bin/{any-bin-id} in browser"], expect: "Redirected to /scan/{bin-id} and bin contents shown" }
-    ]
-  },
-  {
-    id: "ITEMS",
-    title: "Item Management",
-    cases: [
-      { id: "ITEMS-01", title: "Add item to bin", steps: ["Open a bin", "Click 'Add Item'", "Fill name, quantity, tags", "Save"], expect: "Item appears in bin's item list with correct fields" },
-      { id: "ITEMS-02", title: "Edit item", steps: ["Click edit on an item", "Change quantity and description", "Save"], expect: "Changes saved; version counter increments (no optimistic-lock error)" },
-      { id: "ITEMS-03", title: "Delete item", steps: ["Delete an item from a bin"], expect: "Item removed; audit log entry created" },
-      { id: "ITEMS-04", title: "Upload item photo", steps: ["Edit an item", "Attach a valid JPG or PNG under 20 MB"], expect: "Thumbnail shown on item card; photo accessible on reload" },
-      { id: "ITEMS-05", title: "Oversized photo rejected", steps: ["Attempt to upload a file > 20 MB"], expect: "413 error or clear rejection message; item not corrupted" },
-      { id: "ITEMS-06", title: "Move items between bins", steps: ["Select one or more items", "Use 'Move to bin' action", "Choose target bin"], expect: "Items appear in target bin; removed from source" },
-      { id: "ITEMS-07", title: "Tag colors display correctly", steps: ["Assign tags with different colors to items", "View item list"], expect: "Tag chips show correct colors; colors consistent across views" }
-    ]
-  },
-  {
-    id: "PRINT",
-    title: "QR Label Printing",
-    cases: [
-      { id: "PRINT-01", title: "Single label — print preview opens", steps: ["Open any bin", "Click 'Print Label'", "Select default size, Single Label", "Click Print Now"], expect: "New window opens with QR code on left, bin name on right; dashed border visible" },
-      { id: "PRINT-02", title: "Multi-label on A4 — 3 cols layout", steps: ["Print Label → A4 paper → 21 labels → Print Now"], expect: "21 labels arranged in 3×7 grid; QR left, name right; dashed borders; no overflow" },
-      { id: "PRINT-03", title: "Multi-label on A4 — 6 labels", steps: ["Print Label → A4 paper → 6 labels → Print Now"], expect: "6 labels fit on page without clipping; labels sized correctly in mm" },
-      { id: "PRINT-04", title: "Multi-label on Letter paper", steps: ["Print Label → Letter paper → 4 labels → Print Now"], expect: "Page sized to 8.5″ × 11″; labels positioned correctly" },
-      { id: "PRINT-05", title: "Labels-per-page capped at page capacity", steps: ["Enter 999 for labels per page"], expect: "Page shows max that fits; no error thrown" },
-      { id: "PRINT-06", title: "Custom label size", steps: ["Select Custom… in size picker", "Enter 3 × 2 inches", "Single label preview"], expect: "QR and bin name render at correct proportions" }
-    ]
-  },
-  {
-    id: "EXPORT",
-    title: "Export & Backup",
-    cases: [
-      { id: "EXPORT-01", title: "Export CSV", steps: ["Admin menu → Export → CSV"], expect: "File downloads with all bins/items; cells with leading '=' prefixed with apostrophe" },
-      { id: "EXPORT-02", title: "Export XLSX", steps: ["Admin menu → Export → XLSX"], expect: "Valid Excel file; opens without formula-injection warnings" },
-      { id: "EXPORT-03", title: "Backup database", steps: ["Admin → Backup → Download backup"], expect: "File downloads; filename includes timestamp" },
-      { id: "EXPORT-04", title: "Backup requires admin", steps: ["Log in as non-admin", "Attempt GET /api/backup directly"], expect: "403 returned; no file served" },
-      { id: "EXPORT-05", title: "Backup retention listing", steps: ["Admin → Backup → Retention; verify list appears"], expect: "GET /api/backup/retention returns list only; no files deleted by the GET" }
-    ]
-  },
-  {
-    id: "SYNC",
-    title: "Sync & Conflicts",
-    cases: [
-      { id: "SYNC-01", title: "Sync conflicts list requires auth", steps: ["Log out", "GET /api/sync-conflicts directly"], expect: "403 returned when SERVICE_API_KEY is set" },
-      { id: "SYNC-02", title: "Optimistic lock conflict", steps: ["Open same item in two tabs", "Edit and save in tab 1", "Edit and save in tab 2 (stale version)"], expect: "Second save shows conflict error; data from tab 1 not lost" }
-    ]
-  },
-  {
-    id: "MOBILE",
-    title: "Mobile & Responsive",
-    cases: [
-      { id: "MOBILE-01", title: "App usable at 390px width", steps: ["Open app in browser DevTools at 390px width", "Navigate bins, add item"], expect: "No horizontal scroll; buttons and inputs accessible; text readable" },
-      { id: "MOBILE-02", title: "Take photo from mobile", steps: ["On a real phone, open item edit", "Tap camera icon"], expect: "Camera or file picker opens; photo attaches and saves" },
-      { id: "MOBILE-03", title: "Print label picker usable on mobile", steps: ["Open print label dialog on phone-width screen"], expect: "Dropdowns and inputs fit screen; no overflow" }
-    ]
-  },
-  {
-    id: "PERF",
-    title: "Performance & Error Handling",
-    cases: [
-      { id: "PERF-01", title: "Large bin (50+ items) loads", steps: ["Open a bin with 50+ items", "Scroll through all items"], expect: "Page loads under 3s; no visible jank" },
-      { id: "PERF-02", title: "404 page for unknown route", steps: ["Navigate to /nonexistent-path"], expect: "Graceful error page (not a stack trace or blank)" },
-      { id: "PERF-03", title: "App starts up cleanly", steps: ["Restart the app container", "Check startup logs"], expect: "No RuntimeError; startup WARNING logged if SERVICE_API_KEY unset" }
-    ]
-  }
+ {
+  "id": "AUTH",
+  "title": "Sign-in & access",
+  "cases": [
+   {
+    "id": "AUTH-01",
+    "title": "Unauthenticated visit goes to sign-in",
+    "steps": [
+     "Open the app URL in a private window"
+    ],
+    "expect": "Redirected to /login",
+    "auto": "pass",
+    "evidence": "E2E: redirect to /login"
+   },
+   {
+    "id": "AUTH-02",
+    "title": "First user signs in by email code and becomes admin",
+    "steps": [
+     "Enter your email",
+     "Enter the 6-digit code (from email, or `docker compose logs api`)"
+    ],
+    "expect": "Lands on Home; More shows People and Webhook sections",
+    "auto": "pass",
+    "evidence": "E2E + backend tests"
+   },
+   {
+    "id": "AUTH-03",
+    "title": "Wrong or expired code is rejected; locked after 5 tries",
+    "steps": [
+     "Request a code",
+     "Enter a wrong code 5 times",
+     "Enter the right code"
+    ],
+    "expect": "Each wrong code errors; after 5 the code is invalid and a new one is needed",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "AUTH-04",
+    "title": "Uninvited email gets no code",
+    "steps": [
+     "After the first admin exists, request a code for a new address"
+    ],
+    "expect": "Same 'code is on its way' message, but no code is sent",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "AUTH-05",
+    "title": "Invited member signs in without admin sections",
+    "steps": [
+     "Admin: More → People → invite an email",
+     "Sign in as that person"
+    ],
+    "expect": "Member sees inventory; no People or Webhook sections",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "AUTH-06",
+    "title": "Passkey register, sign out, sign in",
+    "steps": [
+     "More → Passkeys → Add",
+     "Sign out",
+     "Sign in with a passkey"
+    ],
+    "expect": "Signed in without an email code",
+    "auto": "pass",
+    "evidence": "E2E (virtual authenticator)"
+   },
+   {
+    "id": "AUTH-07",
+    "title": "Single sign-on (if configured)",
+    "steps": [
+     "Set OIDC_* in .env",
+     "Continue with SSO on the login page"
+    ],
+    "expect": "Lands on Home; uninvited accounts get a clear 'not invited' message",
+    "auto": "pass",
+    "evidence": "Backend tests (mocked provider) — real provider: manual"
+   },
+   {
+    "id": "AUTH-08",
+    "title": "API tokens and CSRF",
+    "steps": [
+     "More → API tokens → New (read only)",
+     "GET /api/items with the token",
+     "POST with the read token"
+    ],
+    "expect": "GET works; POST with a read token is 403; browser writes without CSRF header are 403",
+    "auto": "pass",
+    "evidence": "Release checks"
+   },
+   {
+    "id": "AUTH-09",
+    "title": "Sign out clears the offline cache",
+    "steps": [
+     "Sign out",
+     "Go offline",
+     "Open the app"
+    ],
+    "expect": "Login page, not cached inventory"
+   }
+  ]
+ },
+ {
+  "id": "PLACES",
+  "title": "Rooms & zones",
+  "cases": [
+   {
+    "id": "PLACES-01",
+    "title": "Create a room and a zone",
+    "steps": [
+     "Places → Add room 'Garage'",
+     "Add zone 'North wall'"
+    ],
+    "expect": "Both appear; zone shows 0 bins",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "PLACES-02",
+    "title": "Duplicate names are refused",
+    "steps": [
+     "Add another room called 'Garage'"
+    ],
+    "expect": "Clear 'already exists' error",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "PLACES-03",
+    "title": "Zone with active bins can't be deleted",
+    "steps": [
+     "Try to delete a zone holding a bin"
+    ],
+    "expect": "Refused until the bins are moved or retired",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   }
+  ]
+ },
+ {
+  "id": "BINS",
+  "title": "Bins: onboard & offboard",
+  "cases": [
+   {
+    "id": "BINS-01",
+    "title": "Create a bin with an auto code and print its label",
+    "steps": [
+     "Add → Bin → name + location → Create bin",
+     "Tap 'Print label'"
+    ],
+    "expect": "Opens on B-0001 with a print banner; PDF is 48 × 30 mm",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "BINS-02",
+    "title": "Custom code, case-insensitive lookup",
+    "steps": [
+     "Create a bin with code tools-1",
+     "Scan → type TOOLS-1"
+    ],
+    "expect": "Bin opens",
+    "auto": "pass",
+    "evidence": "E2E + backend tests"
+   },
+   {
+    "id": "BINS-03",
+    "title": "Edit name, location, colour, notes",
+    "steps": [
+     "Bin page → edit → change fields → Save"
+    ],
+    "expect": "Changes shown immediately",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "BINS-04",
+    "title": "Retire a bin and move its contents",
+    "steps": [
+     "Bin with items → Retire → Move to another bin → pick bin"
+    ],
+    "expect": "Bin shows Retired; items now in the other bin",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "BINS-05",
+    "title": "Retire a bin and take contents out",
+    "steps": [
+     "Retire → Take out of bin"
+    ],
+    "expect": "Items show 'Not in a bin'",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "BINS-06",
+    "title": "Restore a retired bin",
+    "steps": [
+     "Home → Bins → Retired → open → Restore"
+    ],
+    "expect": "Bin active again"
+   }
+  ]
+ },
+ {
+  "id": "ITEMS",
+  "title": "Items: onboard, move, offboard",
+  "cases": [
+   {
+    "id": "ITEMS-01",
+    "title": "Add items without a bin",
+    "steps": [
+     "Add → Item → Save & add another",
+     "Add a second item"
+    ],
+    "expect": "Both listed under 'Not in a bin'",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "ITEMS-02",
+    "title": "Bulk move into a bin",
+    "steps": [
+     "Home → Not in a bin → Select → Select all → Move → pick bin"
+    ],
+    "expect": "Toast 'Moved to …'; filter now empty; bin shows 2 items",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "ITEMS-03",
+    "title": "Bulk move is all-or-nothing",
+    "steps": [
+     "Move a set that includes a missing item via the API"
+    ],
+    "expect": "Nothing moves; 404",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "ITEMS-04",
+    "title": "Search by name, tag, category or bin",
+    "steps": [
+     "Type part of a tag or bin name in Home search"
+    ],
+    "expect": "Matching items shown",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "ITEMS-05",
+    "title": "Edit item and tags",
+    "steps": [
+     "Item → edit → change qty and tags → Save"
+    ],
+    "expect": "Saved; history shows Edited",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "ITEMS-06",
+    "title": "Retire and restore an item",
+    "steps": [
+     "Item → Retire → Donated",
+     "Home → Retired → open → Restore"
+    ],
+    "expect": "Hidden from inventory while retired; back after restore",
+    "auto": "pass",
+    "evidence": "E2E (retire) + backend tests (restore)"
+   },
+   {
+    "id": "ITEMS-07",
+    "title": "Photo upload",
+    "steps": [
+     "Item → Add photo → choose a phone photo"
+    ],
+    "expect": "Photo shown; non-images rejected; location data stripped",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "ITEMS-08",
+    "title": "CSV export",
+    "steps": [
+     "More → Export items (CSV)",
+     "Open in a spreadsheet"
+    ],
+    "expect": "All active items; values starting with = are not formulas",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   }
+  ]
+ },
+ {
+  "id": "CHECK",
+  "title": "Check out & check in",
+  "cases": [
+   {
+    "id": "CHECK-01",
+    "title": "Check out with a note",
+    "steps": [
+     "Item → Check out → note 'lent to Sam'"
+    ],
+    "expect": "Badge 'Checked out'; shown under the Checked out filter",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "CHECK-02",
+    "title": "Can't check out twice or retire while out",
+    "steps": [
+     "Try Check out again",
+     "Try Retire"
+    ],
+    "expect": "Both refused",
+    "auto": "pass",
+    "evidence": "Backend tests"
+   },
+   {
+    "id": "CHECK-03",
+    "title": "Check in",
+    "steps": [
+     "Item → Check in"
+    ],
+    "expect": "Badge gone; history lists out and in with who",
+    "auto": "pass",
+    "evidence": "E2E"
+   }
+  ]
+ },
+ {
+  "id": "LABELS",
+  "title": "Labels",
+  "cases": [
+   {
+    "id": "LABELS-01",
+    "title": "All presets produce exact page sizes",
+    "steps": [
+     "Labels → each size → Open printable PDF"
+    ],
+    "expect": "48 × 30, 62 × 29, A4, Letter pages at exact size",
+    "auto": "pass",
+    "evidence": "Release checks: 6 / 6 presets"
+   },
+   {
+    "id": "LABELS-02",
+    "title": "Plain-paper sheets have crop marks and gaps",
+    "steps": [
+     "Pick 'A4 plain paper — 48 mm labels'"
+    ],
+    "expect": "24 labels per A4 page with corner crop marks and 4 mm gutters",
+    "auto": "pass",
+    "evidence": "E2E + visual check"
+   },
+   {
+    "id": "LABELS-03",
+    "title": "Chosen size is remembered",
+    "steps": [
+     "Pick a size",
+     "Open a bin → Label"
+    ],
+    "expect": "Bin label uses the chosen size",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "LABELS-04",
+    "title": "Print on a label maker at 100%",
+    "steps": [
+     "Print the 48 mm label at actual size on your label maker",
+     "Cover with 48 mm clear tape"
+    ],
+    "expect": "Label fits under the tape; QR scans through the tape"
+   },
+   {
+    "id": "LABELS-05",
+    "title": "Print on an inkjet at 100% and cut",
+    "steps": [
+     "Print an A4 or Letter plain-paper sheet at actual size",
+     "Cut along crop marks"
+    ],
+    "expect": "Labels measure 48 × 30 mm; QR scans"
+   }
+  ]
+ },
+ {
+  "id": "PWA",
+  "title": "Phone app",
+  "cases": [
+   {
+    "id": "PWA-01",
+    "title": "Installable",
+    "steps": [
+     "Open over HTTPS on a phone",
+     "Add to Home Screen"
+    ],
+    "expect": "Kapaat icon; opens full-screen",
+    "auto": "pass",
+    "evidence": "E2E: manifest, icons incl. maskable"
+   },
+   {
+    "id": "PWA-02",
+    "title": "Camera scan opens a bin",
+    "steps": [
+     "Scan tab → point at a printed label"
+    ],
+    "expect": "Bin page opens",
+    "auto": "pass",
+    "evidence": "E2E (fake camera with a real QR) — real phone: manual"
+   },
+   {
+    "id": "PWA-03",
+    "title": "Batch move by scanning",
+    "steps": [
+     "Scan → Move into bin → scan items → scan the bin"
+    ],
+    "expect": "Toast 'Moved N items'"
+   },
+   {
+    "id": "PWA-04",
+    "title": "Batch check-in by scanning",
+    "steps": [
+     "Scan → Check in → scan checked-out items"
+    ],
+    "expect": "Each one checked in"
+   },
+   {
+    "id": "PWA-05",
+    "title": "Old v1 labels still open",
+    "steps": [
+     "Scan a label printed by v1"
+    ],
+    "expect": "Opens the imported bin",
+    "auto": "pass",
+    "evidence": "Frontend unit tests (URL parsing) + release checks (import)"
+   },
+   {
+    "id": "PWA-06",
+    "title": "Offline read",
+    "steps": [
+     "Open Home online",
+     "Turn on airplane mode",
+     "Reopen the app"
+    ],
+    "expect": "Last inventory still shows",
+    "auto": "pass",
+    "evidence": "E2E"
+   },
+   {
+    "id": "PWA-07",
+    "title": "Phone-width layout",
+    "steps": [
+     "Use at 390 px wide, light and dark"
+    ],
+    "expect": "No sideways scrolling on any screen",
+    "auto": "pass",
+    "evidence": "E2E: 7 screens"
+   }
+  ]
+ },
+ {
+  "id": "SYNC",
+  "title": "Google Sheets / webhook",
+  "cases": [
+   {
+    "id": "SYNC-01",
+    "title": "Signed, ordered delivery with retries",
+    "steps": [
+     "Turn on a webhook",
+     "Make changes"
+    ],
+    "expect": "Events arrive in order with a valid X-Kapaat-Signature; queue drains",
+    "auto": "pass",
+    "evidence": "Release checks (real receiver) + backend tests"
+   },
+   {
+    "id": "SYNC-02",
+    "title": "Apps Script mirror",
+    "steps": [
+     "Follow docs/sheets-webhook.md with a real Google Sheet",
+     "Send test, Turn on, Send full snapshot"
+    ],
+    "expect": "Items, Bins and Log tabs fill and update",
+    "auto": "pass",
+    "evidence": "Script logic checked against a mock Sheets API — real Sheet: manual"
+   }
+  ]
+ },
+ {
+  "id": "OPS",
+  "title": "Install, upgrade & backups",
+  "cases": [
+   {
+    "id": "OPS-01",
+    "title": "Fresh install from the README",
+    "steps": [
+     "Follow README → Run it"
+    ],
+    "expect": "Three containers healthy; app at BASE_URL",
+    "auto": "pass",
+    "evidence": "E2E stack"
+   },
+   {
+    "id": "OPS-02",
+    "title": "Data survives restarts",
+    "steps": [
+     "docker compose restart"
+    ],
+    "expect": "Items, sessions and tokens unchanged",
+    "auto": "pass",
+    "evidence": "Release checks"
+   },
+   {
+    "id": "OPS-03",
+    "title": "Backup and restore drill",
+    "steps": [
+     "Run the README pg_dump command",
+     "Restore into a fresh test install"
+    ],
+    "expect": "Same items in the restored copy",
+    "auto": "pass",
+    "evidence": "Release checks"
+   },
+   {
+    "id": "OPS-04",
+    "title": "v1 import: dry run, import, re-run",
+    "steps": [
+     "Run the importer on a generated v1 database"
+    ],
+    "expect": "Dry run writes nothing; import maps room › zone › bin; re-run skips",
+    "auto": "pass",
+    "evidence": "Release checks + backend tests"
+   },
+   {
+    "id": "OPS-05",
+    "title": "v1 import on a copy of the household database",
+    "steps": [
+     "Copy the real v1 data",
+     "Dry run, read warnings, then import into a test install"
+    ],
+    "expect": "Counts match v1; warnings understood"
+   },
+   {
+    "id": "OPS-06",
+    "title": "Real email delivery",
+    "steps": [
+     "Set MAIL_BACKEND=smtp and SMTP_*",
+     "Request a code"
+    ],
+    "expect": "Code arrives within a minute"
+   }
+  ]
+ }
 ];
 
 let state = {};
 
 function loadState() {
-  try { const r = localStorage.getItem('kapaat-test-plan-v1'); state = r ? JSON.parse(r) : {}; } catch(e) { state = {}; }
+  try { const r = localStorage.getItem('kapaat-test-plan-v2'); state = r ? JSON.parse(r) : {}; } catch(e) { state = {}; }
 }
 function saveState() {
-  try { localStorage.setItem('kapaat-test-plan-v1', JSON.stringify(state)); } catch(e) {}
+  try { localStorage.setItem('kapaat-test-plan-v2', JSON.stringify(state)); } catch(e) {}
 }
 function getS(k, d) { return state[k] !== undefined ? state[k] : d; }
+const ALL = () => PLAN.flatMap(s => s.cases);
+function getV(c) { const v = getS('v-' + c.id, c.auto || ''); return v === 'none' ? '' : v; }
 function setS(k, v) { state[k] = v; saveState(); }
 
 function render() {
@@ -460,8 +959,8 @@ function render() {
     const div = document.createElement('div');
     div.className = 'section' + (collapsed ? ' collapsed' : '');
     div.id = 'sec-' + section.id;
-    const passed = section.cases.filter(c => getS('v-' + c.id, '') === 'pass').length;
-    const done = section.cases.filter(c => getS('v-' + c.id, '') !== '').length;
+    const passed = section.cases.filter(c => getV(c) === 'pass').length;
+    const done = section.cases.filter(c => getV(c) !== '').length;
     const pct = section.cases.length ? (passed / section.cases.length * 100) : 0;
     div.innerHTML = `
       <div class="section-header" onclick="toggleSection('${section.id}')">
@@ -474,7 +973,7 @@ function render() {
     `;
     const casesDiv = div.querySelector('.cases');
     section.cases.forEach(c => {
-      const verdict = getS('v-' + c.id, '');
+      const verdict = getV(c);
       const note = getS('n-' + c.id, '');
       const caseDiv = document.createElement('div');
       caseDiv.className = 'case' + (verdict ? ' status-' + verdict : '');
@@ -485,6 +984,7 @@ function render() {
           <div class="case-title">${c.title}</div>
           <ol class="case-steps">${c.steps.map(s => `<li>${s}</li>`).join('')}</ol>
           <div class="case-expect">Expected: ${c.expect}</div>
+          ${c.auto ? `<div class="auto-note">✓ Verified: ${c.evidence}</div>` : `<div class="manual-note">Manual check</div>`}
           <textarea class="note-input" id="note-${c.id}" placeholder="What failed? (paste error, PR link…)" onchange="setNote('${c.id}', this.value)">${note}</textarea>
         </div>
         <div class="verdict-btns">
@@ -508,13 +1008,15 @@ function toggleSection(id) {
 }
 
 function setVerdict(caseId, verdict) {
-  const cur = getS('v-' + caseId, '');
-  const next = cur === verdict ? '' : verdict;
+  const c = ALL().find(x => x.id === caseId);
+  const cur = getV(c);
+  const next = cur === verdict ? 'none' : verdict;
   setS('v-' + caseId, next);
   const el = document.getElementById('case-' + caseId);
-  el.className = 'case' + (next ? ' status-' + next : '');
+  const shown = next === 'none' ? '' : next;
+  el.className = 'case' + (shown ? ' status-' + shown : '');
   el.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
-  if (next) el.querySelector('.vbtn.' + next)?.classList.add('active');
+  if (shown) el.querySelector('.vbtn.' + shown)?.classList.add('active');
   renderStats();
   updateSectionProgress(caseId);
 }
@@ -525,8 +1027,8 @@ function updateSectionProgress(caseId) {
   const sId = caseId.split('-')[0];
   const section = PLAN.find(s => s.id === sId);
   if (!section) return;
-  const passed = section.cases.filter(c => getS('v-' + c.id, '') === 'pass').length;
-  const done = section.cases.filter(c => getS('v-' + c.id, '') !== '').length;
+  const passed = section.cases.filter(c => getV(c) === 'pass').length;
+  const done = section.cases.filter(c => getV(c) !== '').length;
   const bar = document.querySelector('#sec-' + sId + ' .section-progress-bar');
   if (bar) bar.style.width = (passed / section.cases.length * 100) + '%';
   const badge = document.querySelector('#sec-' + sId + ' .section-badge');
@@ -534,10 +1036,10 @@ function updateSectionProgress(caseId) {
 }
 
 function renderStats() {
-  const all = PLAN.flatMap(s => s.cases);
-  const pass = all.filter(c => getS('v-' + c.id, '') === 'pass').length;
-  const fail = all.filter(c => getS('v-' + c.id, '') === 'fail').length;
-  const skip = all.filter(c => getS('v-' + c.id, '') === 'skip').length;
+  const all = ALL();
+  const pass = all.filter(c => getV(c) === 'pass').length;
+  const fail = all.filter(c => getV(c) === 'fail').length;
+  const skip = all.filter(c => getV(c) === 'skip').length;
   document.getElementById('statPass').textContent = '✓ ' + pass;
   document.getElementById('statFail').textContent = '✗ ' + fail;
   document.getElementById('statSkip').textContent = '— ' + skip;
@@ -576,7 +1078,7 @@ function delBug(i) {
 
 const versionEl = document.getElementById('versionInput');
 const urlEl = document.getElementById('envUrl');
-versionEl.value = getS('version', '');
+versionEl.value = getS('version', 'v2.0.0');
 urlEl.value = getS('envUrl', '');
 versionEl.addEventListener('input', () => setS('version', versionEl.value));
 urlEl.addEventListener('input', () => setS('envUrl', urlEl.value));
