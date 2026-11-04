@@ -30,6 +30,10 @@ async def _store(file: UploadFile) -> str:
     data = await file.read(limit + 1)
     if len(data) > limit:
         raise HTTPException(413, f"Photo is larger than {get_settings().max_upload_mb} MB")
+    return save_image_bytes(data)
+
+
+def save_image_bytes(data: bytes) -> str:
     try:
         img = Image.open(io.BytesIO(data))
         img.verify()

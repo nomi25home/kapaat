@@ -157,16 +157,17 @@ def move_items(body: MoveItems, db: Db, user: CurrentUser) -> list[ItemOut]:
     for item in items:
         if item.bin_id == (target.id if target else None):
             continue
+        source = item.bin.code if item.bin else None
+        item.bin = target
+        item.updated_at = utcnow()
         record(
             db,
             user,
             "item",
             item.id,
             "moved",
-            {"from": item.bin.code if item.bin else None, "to": target.code if target else None},
+            {**item_snapshot(item), "from": source, "to": target.code if target else None},
         )
-        item.bin_id = target.id if target else None
-        item.updated_at = utcnow()
     db.commit()
     db.expire_all()
     return [item_out(i) for i in db.scalars(item_query().where(Item.id.in_(ids))).unique()]

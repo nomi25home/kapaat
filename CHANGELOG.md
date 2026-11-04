@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [2.0.0] — 2026-11-04
+
+A rewrite with a smaller scope. See [docs/migration-from-v1.md](docs/migration-from-v1.md) to move your data.
+
+### Added
+
+- Three-container stack: Postgres, FastAPI API (`ghcr.io/nomi25home/kapaat-api`) and React PWA served by nginx (`ghcr.io/nomi25home/kapaat-web`).
+- Room › zone › bin hierarchy; items can exist without a bin and be bulk-moved later.
+- Retire/restore for items and bins; retiring a bin moves or unassigns its contents.
+- Check-out / check-in with optional due date and note; per-item history.
+- Label PDFs: 48 × 30 mm tape label (default), Brother DK 62 mm, Avery L7160 and 5160, plain A4/Letter with crop marks; reuse partly used sheets.
+- Installable PWA with camera QR scanning (open, batch move, batch check-in) and read-only offline mode.
+- Email-code sign-in, invitations, per-person API tokens; optional OIDC and passkeys.
+- Signed webhook outbox with ordered retries, plus a Google Sheets Apps Script guide.
+- `scripts/import_v1.py` one-time importer from a v1 SQLite database.
+
+### Removed
+
+- SQLite/SQLCipher, Litestream, the n8n workflow and sync conflicts, `SERVICE_API_KEY`, server-rendered templates.
+
+---
+
 ## [1.3.5] — 2026-10-27
 
 ### Added

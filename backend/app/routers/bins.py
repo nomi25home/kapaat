@@ -8,7 +8,7 @@ from ..models import Bin, Item, Zone, bin_code_seq, utcnow
 from ..schemas import BinIn, BinOut, BinRetire, BinUpdate
 from ..services.events import record
 from ..services.queries import active_bin, bin_item_counts, get_bin
-from ..services.serialize import bin_out, bin_snapshot
+from ..services.serialize import bin_out, bin_snapshot, item_snapshot
 
 router = APIRouter(prefix="/api/bins", tags=["bins"])
 
@@ -114,14 +114,19 @@ def retire_bin(bin_id: int, body: BinRetire, db: Db, user: CurrentUser) -> BinOu
         target = active_bin(db, body.target_bin_id)
     contents = db.scalars(select(Item).where(Item.bin_id == bin_id, Item.status == "active")).all()
     for item in contents:
-        item.bin_id = target.id if target else None
+        item.bin = target
         record(
             db,
             user,
             "item",
             item.id,
             "moved",
-            {"from": b.code, "to": target.code if target else None, "reason": "bin retired"},
+            {
+                **item_snapshot(item),
+                "from": b.code,
+                "to": target.code if target else None,
+                "reason": "bin retired",
+            },
         )
     b.status, b.retired_at, b.retire_reason = "retired", utcnow(), body.reason.strip()
     record(

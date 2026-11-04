@@ -2,121 +2,109 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
-    tags: [ "v*", "[0-9]*" ]  # accept both v1.2.3 and 1.2.3 tag formats
+    branches: ["main"]
+    tags: ["v*", "[0-9]*"] # accept both v1.2.3 and 1.2.3 tag formats
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  lint:
-    name: Code Quality (Ruff)
+  backend:
+    name: Backend (ruff + pytest)
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4.2.2
-
-      - name: Set up Python
-        uses: actions/setup-python@v5.3.0
-        with:
-          python-version: "3.11"
-
-      - name: Install Ruff
-        run: pip install ruff
-
-      - name: Run Ruff Linter
-        run: ruff check .
-
-      - name: Run Ruff Formatter Check
-        run: ruff format --check .
-
-      - name: Version consistency check
-        run: |
-          pyproject_ver=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          version_file=$(cat VERSION)
-          if [ "$pyproject_ver" != "$version_file" ]; then
-            echo "Version mismatch: pyproject.toml=$pyproject_ver, VERSION=$version_file"
-            exit 1
-          fi
-          echo "Versions match: $pyproject_ver"
-
-  test:
-    name: Test Suite (pytest)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4.2.2
-
-      - name: Set up Python
-        uses: actions/setup-python@v5.3.0
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          pip install fastapi uvicorn jinja2 pandas openpyxl requests python-multipart \
-            aiofiles "authlib>=1.3.0" "httpx>=0.27.0" "itsdangerous>=2.1.2" pytest
-
-      - name: Import smoke test
+    services:
+      postgres:
+        image: postgres:17-alpine
         env:
-          AUTH_SECRET_KEY: ci-smoke-test-not-a-real-secret
-          DB_PATH: /tmp/smoke.db
-          PHOTOS_DIR: /tmp/smoke-photos
-        run: python -c "import app; print('app import OK')"
-
-      - name: Run tests
-        env:
-          PYTHONPATH: .
-        run: pytest tests/ -v
-
-  build-and-push:
-    name: Build & Push Docker Image
-    needs: [lint, test]
-    # Only build images on pushes to main or when creating version tags
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+          POSTGRES_DB: kapaat_test
+          POSTGRES_USER: kapaat
+          POSTGRES_PASSWORD: kapaat
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kapaat -d kapaat_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4.2.2
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Migrations match models
+        run: uv run alembic upgrade head && uv run alembic check
+        env:
+          DATABASE_URL: postgresql+psycopg://kapaat:kapaat@localhost:5432/kapaat_test
+          SECRET_KEY: ci-only-secret-key-0123456789abcdef0123456789
+      - name: Tests
+        run: uv run pytest -q
+        env:
+          DATABASE_URL: postgresql+psycopg://kapaat:kapaat@localhost:5432/kapaat_test
 
-      - name: Set up QEMU (Multi-Arch support)
-        uses: docker/setup-qemu-action@v3
+  frontend:
+    name: Frontend (typecheck + vitest + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry (GHCR)
+  images:
+    name: Build & push ${{ matrix.service }} image
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: api
+            context: backend
+          - service: web
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Docker Metadata
+      - name: Image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
-          # Automatically generates tags: 'latest' on main branch, and '1.2.0' on v1.2.0 tag
+          images: ghcr.io/${{ github.repository_owner }}/kapaat-${{ matrix.service }}
           tags: |
             type=edge,branch=main
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-
-      - name: Build and Push Image
+            type=ref,event=pr
+      - name: Build (and push on main/tags)
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ${{ matrix.context }}
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            APP_VERSION=${{ steps.meta.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

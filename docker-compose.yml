@@ -1,20 +1,43 @@
+# Kapaat v2 — copy .env.example to .env, fill in SECRET_KEY and BASE_URL, then: docker compose up -d
 services:
-  garage-storage:
-    image: ghcr.io/nomi25home/kapaat:1
-    container_name: garage-storage
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kapaat
+      POSTGRES_USER: kapaat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - kapaat_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kapaat -d kapaat"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: ghcr.io/nomi25home/kapaat-api:${KAPAAT_VERSION:-2}
+    build: ./backend
+    restart: unless-stopped
+    env_file: ${KAPAAT_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql+psycopg://kapaat:${POSTGRES_PASSWORD}@db:5432/kapaat
+    volumes:
+      - kapaat_photos:/data/photos
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/nomi25home/kapaat-web:${KAPAAT_VERSION:-2}
+    build: ./frontend
     restart: unless-stopped
     ports:
-      - "8099:8096"
-    volumes:
-      - garage_data:/data
-    dns:
-      - 192.168.74.28
-      - 192.168.74.33
-    environment:
-      - TZ=America/New_York
-      - PYTHONUNBUFFERED=1
-      - BASE_URL=${BASE_URL:-http://localhost:8099}
-      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY}  # required: generate with: openssl rand -base64 32
+      - "${KAPAAT_PORT:-8099}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
-  garage_data:
+  kapaat_pg:
+  kapaat_photos:

@@ -105,3 +105,18 @@ def test_webhook_settings_admin_only_and_validated(admin, member):
         "/api/settings/webhook", json={"url": "https://h.example", "enabled": True, "regenerate_secret": True}
     ).json()["secret"]
     assert first and again and first != again
+
+
+def test_move_events_carry_the_full_item_row(admin):
+    enable(admin)
+    b = admin.post("/api/bins", json={"name": "Shed"}).json()
+    i = admin.post("/api/items", json={"name": "Rake", "tags": ["garden"]}).json()
+    drain(Receiver())
+    admin.post("/api/items/move", json={"item_ids": [i["id"]], "bin_id": b["id"]})
+    admin.post(f"/api/bins/{b['id']}/retire", json={"contents": "unassign"})
+    rx = Receiver()
+    drain(rx)
+    moved = [x["data"] for x in rx.bodies if x["event"] == "item.moved"]
+    assert moved[0]["id"] == i["id"] and moved[0]["bin"] == b["code"] and moved[0]["name"] == "Rake"
+    assert moved[0]["tags"] == ["garden"] and moved[0]["from"] is None
+    assert moved[1]["bin"] is None and moved[1]["from"] == b["code"] and moved[1]["reason"] == "bin retired"
