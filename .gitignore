@@ -34,3 +34,10 @@ htmlcov/
 
 # GBrain
 .gbrain-source
+
+# v2
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+*.pdf
+*.tsbuildinfo

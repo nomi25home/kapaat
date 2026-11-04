@@ -1,29 +1,38 @@
 # Contributing
 
-Thanks for your interest in improving nomi25home Storage! This document explains how to contribute effectively.
+Thanks for your interest in improving Kapaat! This document explains how to contribute effectively.
 
 ## Getting started locally
 
+You need Python 3.13 with [uv](https://docs.astral.sh/uv/), Node 22, and a local Postgres.
+
 ```bash
-git clone https://github.com/nomi25home/garage-storage.git
-cd garage-storage
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env          # fill in BASE_URL at minimum
-uvicorn app:app --reload --port 8096
+git clone https://github.com/nomi25home/kapaat.git && cd kapaat
+cd backend && uv sync
+export DATABASE_URL=postgresql+psycopg://kapaat:kapaat@localhost/kapaat_dev SECRET_KEY=dev-only-0123456789abcdef0123456789
+uv run alembic upgrade head && uv run uvicorn app.main:app --reload   # API on :8000, codes printed to the log
+cd ../frontend && npm ci && npm run dev                                  # app on :5173, proxies /api
 ```
 
-Open [http://localhost:8096](http://localhost:8096). The SQLite database is created automatically on first run at the path set by `DB_PATH` (default: `/data/garage_inventory.db` — override in your `.env` if needed for local dev).
+Tests use their own database and refuse to run unless its name contains `test`:
+
+```bash
+cd backend && DATABASE_URL=postgresql+psycopg://kapaat:kapaat@localhost/kapaat_test uv run pytest
+uv run ruff check . && uv run ruff format --check .
+cd ../frontend && npm run typecheck && npm test
+```
+
+Schema changes need an Alembic migration: `uv run alembic revision --autogenerate -m "…"`, then review it.
 
 ## Reporting bugs
 
-1. Search [existing issues](https://github.com/nomi25home/garage-storage/issues) first.
+1. Search [existing issues](https://github.com/nomi25home/kapaat/issues) first.
 2. Open a new issue using the **Bug report** template.
 3. Include: steps to reproduce, expected vs actual behaviour, browser/OS, and any relevant console errors.
 
 ## Suggesting features
 
-Open a [Feature request](https://github.com/nomi25home/garage-storage/issues/new) issue before writing code. Briefly describe the use-case and proposed approach. This avoids wasted effort if the direction doesn't fit the project.
+Open a [Feature request](https://github.com/nomi25home/kapaat/issues/new) issue before writing code. Briefly describe the use-case and proposed approach. This avoids wasted effort if the direction doesn't fit the project.
 
 ## Submitting a Pull Request
 
@@ -38,16 +47,16 @@ Open a [Feature request](https://github.com/nomi25home/garage-storage/issues/new
 
 ### PR checklist
 
-- [ ] `app.py` changes do not introduce hardcoded secrets, IPs, or personal URLs
+- [ ] No hardcoded secrets, IPs, or personal URLs
 - [ ] New configuration values are exposed via environment variables and documented in `.env.example`
-- [ ] Template changes are tested in both light and dark mode at mobile and desktop widths
+- [ ] UI changes are tested in light and dark mode at phone (390 px) and desktop widths
+- [ ] Backend changes have tests; `pytest`, `ruff`, `npm run typecheck` and `npm test` pass
 - [ ] No new runtime dependencies added without discussion (keep the image lean)
 
 ## Code style
 
-- Python: follow PEP 8; keep functions small and single-purpose.
-- JavaScript: vanilla ES2020+, no build step, no frameworks.
-- HTML/CSS: inline styles are acceptable in the Jinja template for component-scoped rules; global rules go in the `<style>` block.
+- Python: formatted and linted by ruff; keep routers thin and put shared logic in `app/services/`.
+- TypeScript/React: strict mode; data fetching through the hooks in `src/api/hooks.ts`; styles use the tokens in `src/styles.css`.
 
 ## Commit messages
 

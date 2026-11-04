@@ -4,7 +4,7 @@
       <stop offset="0%" stop-color="#0f1923"/>
       <stop offset="100%" stop-color="#1a2d3d"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="accent" gradientUnits="userSpaceOnUse" x1="36" y1="44" x2="164" y2="164">
       <stop offset="0%" stop-color="#4cd7f6"/>
       <stop offset="100%" stop-color="#2ab8d8"/>
     </linearGradient>
