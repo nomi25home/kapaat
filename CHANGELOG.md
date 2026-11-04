@@ -6,25 +6,67 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- Light theme: primary cyan darkened to `#08748f` and the "Checked out" badge to `#855600`, so button text, links and badges meet WCAG AA contrast (4.5:1). Dark theme unchanged.
+
+---
+
 ## [2.0.0] — 2026-11-04
 
-A rewrite with a smaller scope. See [docs/migration-from-v1.md](docs/migration-from-v1.md) to move your data.
+A rewrite with a smaller scope. Release notes: [docs/release-notes/v2.0.0.md](docs/release-notes/v2.0.0.md). To move your data, see [docs/migration-from-v1.md](docs/migration-from-v1.md).
 
 ### Added
 
-- Three-container stack: Postgres, FastAPI API (`ghcr.io/nomi25home/kapaat-api`) and React PWA served by nginx (`ghcr.io/nomi25home/kapaat-web`).
+- Three-container stack: Postgres, FastAPI API (`ghcr.io/nomi25home/kapaat-api`) and React PWA served by nginx (`ghcr.io/nomi25home/kapaat-web`), both for amd64 and arm64.
 - Room › zone › bin hierarchy; items can exist without a bin and be bulk-moved later.
 - Retire/restore for items and bins; retiring a bin moves or unassigns its contents.
 - Check-out / check-in with optional due date and note; per-item history.
-- Label PDFs: 48 × 30 mm tape label (default), Brother DK 62 mm, Avery L7160 and 5160, plain A4/Letter with crop marks; reuse partly used sheets.
-- Installable PWA with camera QR scanning (open, batch move, batch check-in) and read-only offline mode.
+- Label PDFs: 48 × 30 mm tape label (default), Brother DK 62 mm, Avery L7160 and 5160, plain A4/Letter with crop marks; skip used positions; copies.
+- Installable PWA with camera QR scanning (open, batch move, batch check-in) and read-only offline mode; light and dark themes.
 - Email-code sign-in, invitations, per-person API tokens; optional OIDC and passkeys.
 - Signed webhook outbox with ordered retries, plus a Google Sheets Apps Script guide.
-- `scripts/import_v1.py` one-time importer from a v1 SQLite database.
+- `scripts/import_v1.py` one-time importer from a v1 SQLite database; v1 QR label URLs still resolve.
+- MIT `LICENSE`.
+
+### Security
+
+- Session writes require a CSRF token; API tokens are per person, hashed at rest, and read-only tokens can't write.
+- Login codes are hashed, expire after 10 minutes, lock after 5 wrong attempts, and are rate-limited per email and IP; responses don't reveal whether an address has an account.
+- Uploaded photos are re-encoded, which strips EXIF and location data; photos require sign-in.
+- nginx sends a strict Content-Security-Policy and other security headers on every response.
+- Signing out clears the offline inventory cache.
+
+### Fixed
+
+- Logo: the shelf dividers didn't render because their gradient used bounding-box units on straight lines.
 
 ### Removed
 
-- SQLite/SQLCipher, Litestream, the n8n workflow and sync conflicts, `SERVICE_API_KEY`, server-rendered templates.
+- SQLite/SQLCipher, Litestream, the n8n workflow and sync conflicts, two-way Sheets sync, XLSX export, `SERVICE_API_KEY`, server-rendered templates.
+
+---
+
+## [1.3.7] — 2026-10-27
+
+### Fixed
+
+- Header no longer overflows horizontally on narrow (≤ 600 px) screens.
+
+### Changed
+
+- Multi-label print sheets have a 3 mm gap between labels.
+- Default label size is 48 × 30 mm, to fit under 48 mm tape.
+
+---
+
+## [1.3.6] — 2026-10-27
+
+### Changed
+
+- CI builds images for both `v1.2.3` and `1.2.3` tag formats; README recommends the `v` prefix.
 
 ---
 
