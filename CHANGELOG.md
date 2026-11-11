@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 ### Fixed
 
 - Light theme: primary cyan darkened to `#08748f` and the "Checked out" badge to `#855600`, so button text, links and badges meet WCAG AA contrast (4.5:1). Dark theme unchanged.
+- Sign-in rate-limit errors (`429 Too many codes requested` / `Too many attempts`) now include how many seconds until retry, instead of a bare "try again later."
 
 ---
 

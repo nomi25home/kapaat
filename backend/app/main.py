@@ -28,7 +28,7 @@ def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(
         title="Kapaat",
-        version="2.0.0",
+        version="2.0.2",
         lifespan=lifespan,
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",

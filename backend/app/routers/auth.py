@@ -33,7 +33,8 @@ def _ip_rate_limit(request: Request) -> None:
     while hits and now - hits[0] > WINDOW.total_seconds():
         hits.popleft()
     if len(hits) >= IP_LIMIT:
-        raise HTTPException(429, "Too many attempts, try again later")
+        retry_after = int(WINDOW.total_seconds() - (now - hits[0]))
+        raise HTTPException(429, f"Too many attempts, try again in {retry_after}s")
     hits.append(now)
 
 
@@ -96,13 +97,19 @@ def request_code(body: CodeRequest, request: Request, db: Db) -> dict:
     _ip_rate_limit(request)
     email = body.email.lower()
     if may_sign_in(db, email):
+        oldest_recent = db.scalar(
+            select(func.min(LoginCode.created_at)).where(
+                LoginCode.email == email, LoginCode.created_at > utcnow() - WINDOW
+            )
+        )
         recent = db.scalar(
             select(func.count(LoginCode.id)).where(
                 LoginCode.email == email, LoginCode.created_at > utcnow() - WINDOW
             )
         )
         if recent >= CODES_PER_WINDOW:
-            raise HTTPException(429, "Too many codes requested, try again later")
+            retry_after = int((oldest_recent + WINDOW - utcnow()).total_seconds())
+            raise HTTPException(429, f"Too many codes requested, try again in {retry_after}s")
         code = f"{secrets.randbelow(1_000_000):06d}"
         db.add(
             LoginCode(email=email, code_hash=keyed_hash(f"{email}:{code}"), expires_at=utcnow() + CODE_TTL)
