@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     webhook_worker: bool = True
 
+    vision_api_base: str = ""  # e.g. https://freellmapi.home.mihirfamily.com/v1 ("" disables AI description)
+    vision_api_key: str = ""
+    vision_model: str = "gemini-flash"
+
     @property
     def public_url(self) -> str:
         return self.base_url.rstrip("/")

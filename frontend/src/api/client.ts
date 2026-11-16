@@ -55,6 +55,10 @@ export function upload<T>(path: string, file: File): Promise<T> {
   return api<T>(path, { method: "POST", body: form });
 }
 
+export function describePhoto(file: File): Promise<{ description: string }> {
+  return upload("/api/items/describe-photo", file);
+}
+
 export function qs(params: Record<string, string | number | boolean | null | undefined>): string {
   const u = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {

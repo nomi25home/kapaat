@@ -81,6 +81,7 @@ All settings live in `.env`; [.env.example](.env.example) explains each one.
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | no | Single sign-on; redirect URI is `BASE_URL/api/auth/oidc/callback` |
 | `OIDC_ADMIN_GROUP` | no | Group whose members become admins |
 | `WEBAUTHN_RP_ID` | no | Hostname of `BASE_URL`; turns on passkeys |
+| `VISION_API_BASE`, `VISION_API_KEY`, `VISION_MODEL` | no | OpenAI-compatible vision endpoint; auto-generates an item description from its photo when set |
 | `KAPAAT_PORT` | no | Host port (default 8099) |
 
 ## API

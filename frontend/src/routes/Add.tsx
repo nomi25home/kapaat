@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { post, upload } from "../api/client";
+import { describePhoto, post, upload } from "../api/client";
 import { useBins, useCategories, useInvalidate } from "../api/hooks";
 import type { Bin, Item } from "../api/types";
 import { Icon } from "../components/Icon";
@@ -48,9 +48,24 @@ function AddItem({ presetBin }: { presetBin: string | null }) {
   const [tags, setTags] = useState<string[]>([]);
   const [binId, setBinId] = useState<number | null>(presetBin ? Number(presetBin) : lastBin());
   const [photo, setPhoto] = useState<File | null>(null);
+  const [describing, setDescribing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const bin = bins.find((b) => b.id === binId) ?? null;
+
+  const pickPhoto = async (f: File | null) => {
+    setPhoto(f);
+    if (!f || notes.trim()) return;
+    setDescribing(true);
+    try {
+      const { description } = await describePhoto(f);
+      setNotes(description);
+    } catch {
+      /* best-effort: leave Notes empty, user can type their own */
+    } finally {
+      setDescribing(false);
+    }
+  };
 
   const save = async (e: FormEvent, again: boolean) => {
     e.preventDefault();
@@ -117,12 +132,12 @@ function AddItem({ presetBin }: { presetBin: string | null }) {
         <TagInput value={tags} onChange={setTags} />
       </label>
       <label className="field">
-        Notes
+        Notes {describing && <span className="muted small">Generating description…</span>}
         <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
       </label>
       <label className="field">
         Photo
-        <input className="input" type="file" accept="image/*" capture="environment" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
+        <input className="input" type="file" accept="image/*" capture="environment" onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)} />
       </label>
       <div className="grid2">
         <button type="button" className="btn" disabled={busy || !name.trim()} onClick={(e) => save(e, true)}>
