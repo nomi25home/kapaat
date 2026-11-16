@@ -1,12 +1,16 @@
 import base64
 import io
 import json
+import time
 
 import httpx
 from fastapi import HTTPException
 from PIL import Image, ImageOps
 
 from ..config import get_settings
+
+_MAX_ATTEMPTS = 2
+_RETRY_DELAY_S = 1.5
 
 PROMPT = (
     "Identify this household/garage item from its photo for an inventory app. "
@@ -33,26 +37,35 @@ def detect_item(data: bytes) -> dict:
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=80)
     b64 = base64.b64encode(buf.getvalue()).decode()
-    resp = httpx.post(
-        f"{s.vision_api_base.rstrip('/')}/chat/completions",
-        headers={"Authorization": f"Bearer {s.vision_api_key}"},
-        json={
-            "model": s.vision_model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": PROMPT},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            resp = httpx.post(
+                f"{s.vision_api_base.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {s.vision_api_key}"},
+                json={
+                    "model": s.vision_model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": PROMPT},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                            ],
+                        }
                     ],
-                }
-            ],
-            "max_tokens": 200,
-            "response_format": {"type": "json_object"},
-        },
-        timeout=25,
-    )
-    resp.raise_for_status()
+                    "max_tokens": 200,
+                    "response_format": {"type": "json_object"},
+                },
+                timeout=25,
+            )
+            resp.raise_for_status()
+            break
+        except httpx.HTTPError:
+            # A multi-provider router can be transiently slow or down; one retry
+            # often lands on a different, healthy provider.
+            if attempt == _MAX_ATTEMPTS:
+                raise
+            time.sleep(_RETRY_DELAY_S)
     content = resp.json()["choices"][0]["message"]["content"]
     parsed = json.loads(content)
     result = {

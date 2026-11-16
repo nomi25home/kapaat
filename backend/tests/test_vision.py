@@ -47,8 +47,26 @@ def test_detect_item_raises_on_upstream_error(vision_configured, monkeypatch):
     monkeypatch.setattr(
         httpx, "post", lambda url, **kwargs: httpx.Response(500, request=httpx.Request("POST", url))
     )
+    monkeypatch.setattr(vision.time, "sleep", lambda _: None)
     with pytest.raises(httpx.HTTPStatusError):
         vision.detect_item(_jpeg_bytes())
+
+
+def test_detect_item_retries_once_after_transient_error(vision_configured, monkeypatch):
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append(url)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("timed out", request=httpx.Request("POST", url))
+        content = '{"name": "Drill", "category": "Tools", "notes": "A drill", "tags": []}'
+        return _response(url, {"choices": [{"message": {"content": content}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    monkeypatch.setattr(vision.time, "sleep", lambda _: None)
+    result = vision.detect_item(_jpeg_bytes())
+    assert len(calls) == 2
+    assert result["name"] == "Drill"
 
 
 def test_detect_item_raises_when_model_echoes_schema(vision_configured, monkeypatch):
