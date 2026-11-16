@@ -10,11 +10,17 @@ from ..config import get_settings
 
 PROMPT = (
     "Identify this household/garage item from its photo for an inventory app. "
-    "Respond with strict JSON only, no markdown fences, no extra text, matching exactly this shape: "
-    '{"name": "short item name", "category": "one or two word category", '
-    '"notes": "a short (under 15 words) plain description", "tags": ["lowercase", "keyword", "tags"]}. '
-    "Use at most 4 tags. If unsure about a field, give your best guess rather than leaving it empty."
+    "Respond with strict JSON only, no markdown fences, no extra text, with exactly these keys: "
+    '{"name": <short item name>, "category": <one or two word category>, '
+    '"notes": <a short (under 15 words) plain description>, "tags": [<up to 4 lowercase keyword tags>]}. '
+    "The angle-bracket placeholders describe what each value should contain — "
+    "replace every one of them with your own best guess about THIS photo. "
+    "Never return a placeholder, example, or the schema itself as a value."
 )
+
+# If a model ignores the instructions and echoes the schema's placeholder wording
+# back as a literal value, treat that as a failed detection rather than real data.
+_PLACEHOLDER_MARKERS = ("short item name", "one or two word category", "plain description", "keyword tag")
 
 
 def detect_item(data: bytes) -> dict:
@@ -49,9 +55,13 @@ def detect_item(data: bytes) -> dict:
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"]
     parsed = json.loads(content)
-    return {
+    result = {
         "name": str(parsed.get("name", "")).strip()[:200],
         "category": str(parsed.get("category", "")).strip()[:80],
         "notes": str(parsed.get("notes", "")).strip(),
         "tags": [str(t).strip().lower() for t in parsed.get("tags", []) if str(t).strip()][:4],
     }
+    fields_text = " ".join([result["name"], result["category"], result["notes"], *result["tags"]]).lower()
+    if any(marker in fields_text for marker in _PLACEHOLDER_MARKERS):
+        raise ValueError("model echoed the prompt's schema instead of describing the photo")
+    return result

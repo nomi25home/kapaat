@@ -51,6 +51,18 @@ def test_detect_item_raises_on_upstream_error(vision_configured, monkeypatch):
         vision.detect_item(_jpeg_bytes())
 
 
+def test_detect_item_raises_when_model_echoes_schema(vision_configured, monkeypatch):
+    content = (
+        '{"name": "short item name", "category": "one or two word category", '
+        '"notes": "a short plain description", "tags": ["keyword tag"]}'
+    )
+    monkeypatch.setattr(
+        httpx, "post", lambda url, **kwargs: _response(url, {"choices": [{"message": {"content": content}}]})
+    )
+    with pytest.raises(ValueError):
+        vision.detect_item(_jpeg_bytes())
+
+
 def test_detect_item_raises_on_bad_json(vision_configured, monkeypatch):
     monkeypatch.setattr(
         httpx,
