@@ -27,7 +27,9 @@ def test_describe_photo_returns_trimmed_content(vision_configured, monkeypatch):
         assert url == "https://freellmapi.test/v1/chat/completions"
         assert kwargs["headers"]["Authorization"] == "Bearer test-key"
         req = httpx.Request("POST", url)
-        return httpx.Response(200, json={"choices": [{"message": {"content": "  A red widget  "}}]}, request=req)
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "  A red widget  "}}]}, request=req
+        )
 
     monkeypatch.setattr(httpx, "post", fake_post)
     assert vision.describe_photo(_jpeg_bytes()) == "A red widget"
