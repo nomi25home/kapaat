@@ -2,6 +2,7 @@ import io
 
 import httpx
 import pytest
+from fastapi import HTTPException
 from PIL import Image
 
 from app.config import get_settings
@@ -14,6 +15,10 @@ def _jpeg_bytes() -> bytes:
     return buf.getvalue()
 
 
+def _response(url: str, body: dict) -> httpx.Response:
+    return httpx.Response(200, json=body, request=httpx.Request("POST", url))
+
+
 @pytest.fixture
 def vision_configured(monkeypatch):
     s = get_settings()
@@ -22,31 +27,42 @@ def vision_configured(monkeypatch):
     return s
 
 
-def test_describe_photo_returns_trimmed_content(vision_configured, monkeypatch):
+def test_detect_item_parses_json_fields(vision_configured, monkeypatch):
     def fake_post(url, **kwargs):
         assert url == "https://freellmapi.test/v1/chat/completions"
         assert kwargs["headers"]["Authorization"] == "Bearer test-key"
-        req = httpx.Request("POST", url)
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": "  A red widget  "}}]}, request=req
-        )
+        content = '{"name": " Cordless drill ", "category": "Tools", "notes": "A red drill", "tags": ["Drill", " power-tool", ""]}'
+        return _response(url, {"choices": [{"message": {"content": content}}]})
 
     monkeypatch.setattr(httpx, "post", fake_post)
-    assert vision.describe_photo(_jpeg_bytes()) == "A red widget"
+    assert vision.detect_item(_jpeg_bytes()) == {
+        "name": "Cordless drill",
+        "category": "Tools",
+        "notes": "A red drill",
+        "tags": ["drill", "power-tool"],
+    }
 
 
-def test_describe_photo_raises_on_upstream_error(vision_configured, monkeypatch):
+def test_detect_item_raises_on_upstream_error(vision_configured, monkeypatch):
     monkeypatch.setattr(
         httpx, "post", lambda url, **kwargs: httpx.Response(500, request=httpx.Request("POST", url))
     )
     with pytest.raises(httpx.HTTPStatusError):
-        vision.describe_photo(_jpeg_bytes())
+        vision.detect_item(_jpeg_bytes())
 
 
-def test_describe_photo_disabled_without_config(monkeypatch):
-    from fastapi import HTTPException
+def test_detect_item_raises_on_bad_json(vision_configured, monkeypatch):
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda url, **kwargs: _response(url, {"choices": [{"message": {"content": "not json"}}]}),
+    )
+    with pytest.raises(ValueError):
+        vision.detect_item(_jpeg_bytes())
 
+
+def test_detect_item_disabled_without_config(monkeypatch):
     s = get_settings()
     monkeypatch.setattr(s, "vision_api_base", "")
     with pytest.raises(HTTPException):
-        vision.describe_photo(_jpeg_bytes())
+        vision.detect_item(_jpeg_bytes())

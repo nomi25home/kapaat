@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { describePhoto, post, upload } from "../api/client";
+import { detectItemPhoto, post, upload } from "../api/client";
 import { useBins, useCategories, useInvalidate } from "../api/hooks";
 import type { Bin, Item } from "../api/types";
 import { Icon } from "../components/Icon";
@@ -48,22 +48,26 @@ function AddItem({ presetBin }: { presetBin: string | null }) {
   const [tags, setTags] = useState<string[]>([]);
   const [binId, setBinId] = useState<number | null>(presetBin ? Number(presetBin) : lastBin());
   const [photo, setPhoto] = useState<File | null>(null);
-  const [describing, setDescribing] = useState(false);
+  const [mode, setMode] = useState<"manual" | "ai">("manual");
+  const [detecting, setDetecting] = useState(false);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const bin = bins.find((b) => b.id === binId) ?? null;
 
   const pickPhoto = async (f: File | null) => {
     setPhoto(f);
-    if (!f || notes.trim()) return;
-    setDescribing(true);
+    if (!f || mode !== "ai") return;
+    setDetecting(true);
     try {
-      const { description } = await describePhoto(f);
-      setNotes(description);
-    } catch {
-      /* best-effort: leave Notes empty, user can type their own */
+      const d = await detectItemPhoto(f);
+      if (d.name) setName(d.name);
+      if (d.category) setCategory(d.category);
+      if (d.notes) setNotes(d.notes);
+      if (d.tags?.length) setTags(d.tags);
+    } catch (err) {
+      toast(errorText(err), "err");
     } finally {
-      setDescribing(false);
+      setDetecting(false);
     }
   };
 
@@ -85,7 +89,9 @@ function AddItem({ presetBin }: { presetBin: string | null }) {
       if (again) {
         setName("");
         setQty(1);
+        setCategory("");
         setNotes("");
+        setTags([]);
         setPhoto(null);
       } else {
         nav(`/i/${item.id}`);
@@ -99,6 +105,17 @@ function AddItem({ presetBin }: { presetBin: string | null }) {
 
   return (
     <form className="stack" onSubmit={(e) => save(e, false)}>
+      <div className="segmented">
+        <button type="button" className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>Manual entry</button>
+        <button type="button" className={mode === "ai" ? "on" : ""} onClick={() => setMode("ai")}>AI from photo</button>
+      </div>
+      {mode === "ai" && (
+        <label className="field">
+          Photo {detecting && <span className="muted small">Detecting item details…</span>}
+          <input className="input" type="file" accept="image/*" capture="environment" onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)} />
+          <span className="muted small">Take or choose a photo — AI fills in the fields below. Review before saving.</span>
+        </label>
+      )}
       <label className="field">
         Name
         <input className="input" required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="e.g. Cordless drill" />
@@ -132,13 +149,15 @@ function AddItem({ presetBin }: { presetBin: string | null }) {
         <TagInput value={tags} onChange={setTags} />
       </label>
       <label className="field">
-        Notes {describing && <span className="muted small">Generating description…</span>}
+        Notes
         <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
       </label>
-      <label className="field">
-        Photo
-        <input className="input" type="file" accept="image/*" capture="environment" onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)} />
-      </label>
+      {mode === "manual" && (
+        <label className="field">
+          Photo
+          <input className="input" type="file" accept="image/*" capture="environment" onChange={(e) => pickPhoto(e.target.files?.[0] ?? null)} />
+        </label>
+      )}
       <div className="grid2">
         <button type="button" className="btn" disabled={busy || !name.trim()} onClick={(e) => save(e, true)}>
           Save &amp; add another

@@ -1,5 +1,6 @@
 import base64
 import io
+import json
 
 import httpx
 from fastapi import HTTPException
@@ -8,15 +9,18 @@ from PIL import Image, ImageOps
 from ..config import get_settings
 
 PROMPT = (
-    "Write a short (under 15 words) plain description of this household/garage "
-    "item for an inventory app. No preamble, just the description."
+    "Identify this household/garage item from its photo for an inventory app. "
+    "Respond with strict JSON only, no markdown fences, no extra text, matching exactly this shape: "
+    '{"name": "short item name", "category": "one or two word category", '
+    '"notes": "a short (under 15 words) plain description", "tags": ["lowercase", "keyword", "tags"]}. '
+    "Use at most 4 tags. If unsure about a field, give your best guess rather than leaving it empty."
 )
 
 
-def describe_photo(data: bytes) -> str:
+def detect_item(data: bytes) -> dict:
     s = get_settings()
     if not (s.vision_api_base and s.vision_api_key):
-        raise HTTPException(503, "AI description is not configured")
+        raise HTTPException(503, "AI detection is not configured")
     img = Image.open(io.BytesIO(data))
     img = ImageOps.exif_transpose(img).convert("RGB")
     img.thumbnail((768, 768))
@@ -37,9 +41,17 @@ def describe_photo(data: bytes) -> str:
                     ],
                 }
             ],
-            "max_tokens": 60,
+            "max_tokens": 200,
+            "response_format": {"type": "json_object"},
         },
-        timeout=20,
+        timeout=25,
     )
     resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    content = resp.json()["choices"][0]["message"]["content"]
+    parsed = json.loads(content)
+    return {
+        "name": str(parsed.get("name", "")).strip()[:200],
+        "category": str(parsed.get("category", "")).strip()[:80],
+        "notes": str(parsed.get("notes", "")).strip(),
+        "tags": [str(t).strip().lower() for t in parsed.get("tags", []) if str(t).strip()][:4],
+    }

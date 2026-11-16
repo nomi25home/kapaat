@@ -10,7 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ### Added
 
-- Add Item: picking a photo now auto-generates a short description into the Notes field (via a configurable vision API), if Notes is still empty. Review/edit before saving; disabled unless `VISION_API_BASE`/`VISION_API_KEY` are configured.
+- Add Item: a new "AI from photo" mode. Take or choose a photo and a configurable vision API fills in Name, Category, Notes and Tags for you to review before saving. "Manual entry" stays the default, unchanged. Disabled unless `VISION_API_BASE`/`VISION_API_KEY` are configured.
 
 ### Fixed
 
