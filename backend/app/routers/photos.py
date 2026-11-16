@@ -57,16 +57,16 @@ def _remove(name: str | None) -> None:
         (photos_dir() / name).unlink(missing_ok=True)
 
 
-@router.post("/items/describe-photo")
-async def describe_photo(file: UploadFile, user: CurrentUser) -> dict:
+@router.post("/items/detect-photo")
+async def detect_photo(file: UploadFile, user: CurrentUser) -> dict:
     limit = get_settings().max_upload_mb * 1024 * 1024
     data = await file.read(limit + 1)
     if len(data) > limit:
         raise HTTPException(413, f"Photo is larger than {get_settings().max_upload_mb} MB")
     try:
-        return {"description": vision.describe_photo(data)}
-    except (httpx.HTTPError, UnidentifiedImageError, KeyError) as exc:
-        raise HTTPException(502, "Could not generate a description, try again") from exc
+        return vision.detect_item(data)
+    except (httpx.HTTPError, UnidentifiedImageError, KeyError, ValueError) as exc:
+        raise HTTPException(502, "Could not detect item details, try again") from exc
 
 
 @router.post("/items/{item_id}/photo")
