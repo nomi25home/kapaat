@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 ### Fixed
 
 - AI-from-photo detection: a weak or confused model occasionally echoed the prompt's JSON schema back as literal field values (e.g. Name becoming "short item name"). This is now detected and treated as a failed request instead of being written into the form.
+- AI-from-photo detection: a single transient upstream failure (timeout, 5xx) now retries once after a short delay instead of failing immediately — helpful with a multi-provider router where one provider being slow or down shouldn't fail the whole request.
 - Light theme: primary cyan darkened to `#08748f` and the "Checked out" badge to `#855600`, so button text, links and badges meet WCAG AA contrast (4.5:1). Dark theme unchanged.
 - Sign-in rate-limit errors (`429 Too many codes requested` / `Too many attempts`) now include how many seconds until retry, instead of a bare "try again later."
 
