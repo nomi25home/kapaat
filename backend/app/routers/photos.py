@@ -3,12 +3,14 @@ import re
 import uuid
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from ..config import get_settings
 from ..deps import CurrentUser, Db
+from ..services import vision
 from ..services.events import record
 from ..services.queries import active_bin, get_item
 
@@ -53,6 +55,18 @@ def save_image_bytes(data: bytes) -> str:
 def _remove(name: str | None) -> None:
     if name and NAME_RE.match(name):
         (photos_dir() / name).unlink(missing_ok=True)
+
+
+@router.post("/items/describe-photo")
+async def describe_photo(file: UploadFile, user: CurrentUser) -> dict:
+    limit = get_settings().max_upload_mb * 1024 * 1024
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(413, f"Photo is larger than {get_settings().max_upload_mb} MB")
+    try:
+        return {"description": vision.describe_photo(data)}
+    except (httpx.HTTPError, UnidentifiedImageError, KeyError) as exc:
+        raise HTTPException(502, "Could not generate a description, try again") from exc
 
 
 @router.post("/items/{item_id}/photo")

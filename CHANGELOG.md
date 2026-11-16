@@ -8,6 +8,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Add Item: picking a photo now auto-generates a short description into the Notes field (via a configurable vision API), if Notes is still empty. Review/edit before saving; disabled unless `VISION_API_BASE`/`VISION_API_KEY` are configured.
+
 ### Fixed
 
 - Light theme: primary cyan darkened to `#08748f` and the "Checked out" badge to `#855600`, so button text, links and badges meet WCAG AA contrast (4.5:1). Dark theme unchanged.
