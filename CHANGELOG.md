@@ -12,6 +12,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 
 - Add Item: a new "AI from photo" mode. Take or choose a photo and a configurable vision API fills in Name, Category, Notes and Tags for you to review before saving. "Manual entry" stays the default, unchanged. Disabled unless `VISION_API_BASE`/`VISION_API_KEY` are configured. Defaults `VISION_MODEL` to `auto`, so a router that supports it can fail over across providers if one is down or rate-limited.
 
+### Security
+
+- `web` (nginx) now self-signs a TLS cert at startup and serves HTTPS only, instead of plain HTTP, closing a gap where traffic between the reverse proxy and this container was unencrypted on the LAN.
+
 ### Fixed
 
 - AI-from-photo detection: a weak or confused model occasionally echoed the prompt's JSON schema back as literal field values (e.g. Name becoming "short item name"). This is now detected and treated as a failed request instead of being written into the form.
