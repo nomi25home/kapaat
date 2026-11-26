@@ -34,13 +34,13 @@ Light-mode cyan is darker than the brand cyan so white button text and links on 
 
 | Role | Stack | Size |
 |---|---|---|
-| UI and body | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` | 15 px / 1.45 |
+| UI and body | `"Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` | 15 px / 1.45 |
 | Codes (bin codes, tokens, OTP) | `ui-monospace, "JetBrains Mono", "DM Mono", Menlo, Consolas, monospace` | inherits |
 | Page title | sans, 700 | 18 px |
 | Section label (`h3`) | sans, 600, uppercase, 0.06 em tracking | 13 px |
 | Small / meta | sans | 13 px |
 
-No web fonts are loaded: the app works offline and self-hosted without third-party requests. Inputs are 16 px so iOS doesn't zoom on focus.
+Inter Variable (`frontend/public/fonts/InterVariable.woff2`, OFL-licensed) is self-hosted, not loaded from a CDN — the app still works offline and self-hosted without third-party requests, and it's precached by the service worker. `system-ui` stays as the fallback. Inputs are 16 px so iOS doesn't zoom on focus.
 
 ## Spacing and layout
 
