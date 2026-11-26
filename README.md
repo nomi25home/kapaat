@@ -1,24 +1,63 @@
-# Kapaat
+<p align="center">
+  <img src="brand/icons/kapaat-logo.svg" width="96" alt="Kapaat logo">
+</p>
 
-<img src="brand/icons/kapaat-logo.svg" width="72" align="right" alt="Kapaat logo">
+<h1 align="center">Kapaat</h1>
 
-**Know what's in every bin.** Kapaat (ਕਪਾਟ / कपाट — *cupboard*) is a self-hosted home storage inventory: rooms › zones › bins › items, printable QR labels, and a phone app you install from the browser.
+<p align="center"><strong>Know what's in every bin.</strong></p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  Self-hosted home storage inventory: rooms › zones › bins › items, printable QR labels, and a phone app you install from the browser.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/backend-FastAPI-0ea5e9.svg" alt="FastAPI">
+  <img src="https://img.shields.io/badge/frontend-React%20PWA-0ea5e9.svg" alt="React PWA">
+  <img src="https://img.shields.io/badge/self--hosted-Docker-0ea5e9.svg" alt="Self-hosted">
+</p>
+
+<p align="center">
+  4 label presets · 2 sign-in methods · AI photo entry · offline-readable PWA
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/home.png" width="320" alt="Kapaat home screen">
+</p>
+
+Kapaat (ਕਪਾਟ / कपाट — *cupboard*) is how you stop forgetting what's in the garage. Every bin gets a QR label; scan it with your phone to see what's inside, or search from anywhere.
 
 ## What it does
 
-- **Rooms › zones › bins.** A room is an area of your home (Garage), a zone is part of it (North wall shelves), bins live in zones.
-- **Add items first, sort later.** Items don't need a bin. Put them in one when you get to it, or select many and **bulk move** them.
-- **Onboard and offboard.** Create bins and print their label in one step. Retire items (used up, donated, sold…) and bins (move their contents or take them out) without losing history; restore any time.
-- **Check out / check in.** Track what's lent out or in use, with an optional due date and note.
-- **Labels that survive the garage.** Exact-size PDFs with a QR code: **48 mm × 30 mm** by default, sized to sit under 48 mm clear packing tape. Also Brother DK 62 mm, Avery L7160 (A4) and 5160 (Letter) sticker sheets, and plain A4/Letter paper with crop marks for cutting.
-- **Phone app (PWA).** Install from the browser. Scan a label with the camera to open a bin, batch-move items by scanning, or check things back in. Your last-seen inventory stays readable offline.
-- **Simple sign-in.** A 6-digit code by email. Optionally add passkeys (Face ID, Touch ID, device PIN) and single sign-on (Authentik, Keycloak, Google…).
-- **Google Sheets mirror (optional).** Every change can be sent to a webhook; a [copy-paste Apps Script](docs/sheets-webhook.md) keeps a spreadsheet in sync. Works with n8n, Home Assistant or your own code too.
-- Photos, tags, CSV export, per-person API tokens.
+| | |
+|---|---|
+| **Rooms › zones › bins** | A room is an area of your home (Garage), a zone is part of it (North wall shelves), bins live in zones. |
+| **Add items first, sort later** | Items don't need a bin. Put them in one when you get to it, or select many and bulk move them. |
+| **Onboard and offboard** | Create bins and print their label in one step. Retire items and bins without losing history; restore any time. |
+| **Check out / check in** | Track what's lent out or in use, with an optional due date and note. |
+| **Labels that survive the garage** | Exact-size PDFs with a QR code — tape labels, Brother DK rolls, Avery sticker sheets, or plain paper with crop marks. |
+| **Phone app (PWA)** | Install from the browser. Scan a label to open a bin, batch-move items by scanning, or check things back in. Works offline for reads. |
+| **AI from photo** | Point the camera at an item; a configurable vision model fills in Name, Category, Notes and Tags for you to review. |
+| **Simple sign-in** | A 6-digit code by email, plus optional passkeys and SSO (Authentik, Keycloak, Google…). |
+| **Google Sheets mirror** | Optional webhook on every change; a copy-paste Apps Script keeps a spreadsheet in sync. |
 
-## Run it
+<p align="center">
+  <img src="docs/screenshots/add-item.png" width="260" alt="Add Item screen in AI from photo mode">
+  <img src="docs/screenshots/labels.png" width="260" alt="Print labels screen">
+  <img src="docs/screenshots/places.png" width="260" alt="Places screen">
+</p>
+
+## Before you set this up
+
+**Do I need a domain or reverse proxy?** No, to try it locally on the default port. Camera scanning and passkeys need HTTPS, so for daily use put Kapaat behind a reverse proxy (Caddy, Traefik, Nginx Proxy Manager…).
+
+**Do I need email/SMTP configured?** No. The default `MAIL_BACKEND=log` prints sign-in codes to `docker compose logs api`, which is enough to try it out. Set `SMTP_*` to actually email codes.
+
+**Can I migrate from v1?** Yes — see [Upgrading from v1](#upgrading-from-v1). Old QR labels keep working.
+
+**Does the AI photo feature require a cloud API key?** No. It works with any OpenAI-compatible endpoint, including a self-hosted one; it's entirely optional and off by default.
+
+## Install
 
 You need Docker with Compose.
 
@@ -35,11 +74,11 @@ nano .env   # set BASE_URL to the address you'll open, and ADMIN_EMAIL to your e
 docker compose up -d
 ```
 
-Open `BASE_URL` (default port **8099**), enter your email, and sign in with the code. With the default `MAIL_BACKEND=log` the code is printed in `docker compose logs api`; set the `SMTP_*` values to email it instead. The first person to sign in becomes the admin; if `ADMIN_EMAIL` is set, only that address can.
+Open `BASE_URL` (default port **8099**), enter your email, and sign in with the code. The first person to sign in becomes the admin; if `ADMIN_EMAIL` is set, only that address can.
 
 Then: **Places** → add rooms and zones → **Add → Bin** → print its label → **Add → Item**.
 
-To install the app on a phone, open Kapaat in the browser and use *Add to Home Screen* (iOS: Share menu; Android: browser menu). Camera scanning and passkeys need HTTPS, so put Kapaat behind your reverse proxy (Caddy, Traefik, Nginx Proxy Manager…) and set `COOKIE_SECURE=true`.
+To install the app on a phone, open Kapaat in the browser and use *Add to Home Screen* (iOS: Share menu; Android: browser menu).
 
 ### Printing labels
 
@@ -50,7 +89,7 @@ Print the PDF at **100% / actual size** (turn off "fit to page").
 | 48 mm tape label (default) | 48 × 30 mm, one per page | label makers, or print and trim; cover with 48 mm clear tape |
 | Brother DK 62 mm | 62 × 29 mm | Brother QL printers with DK continuous rolls |
 | A4 / Letter plain paper | 48 × 30 mm, 24 (A4) or 21 (Letter) per sheet | any inkjet or laser; cut along the crop marks |
-| Avery L7160 / 5160 | 63.5 × 38.1 mm / 66.7 × 25.4 mm | sticker sheets; "skip used positions" reuses partly used sheets |
+| Avery L7160 / 5160 / 8163 | 63.5 × 38.1 mm / 66.7 × 25.4 mm / 101.6 × 50.8 mm | sticker sheets; "skip used positions" reuses partly used sheets |
 
 ### Back up
 
@@ -115,7 +154,15 @@ cd frontend && npm ci && npm run dev
 npm run typecheck && npm test
 ```
 
-See [CONTRIBUTING](.github/CONTRIBUTING.md), [SECURITY](.github/SECURITY.md), the [design system](DESIGN.md), the [roadmap](ROADMAP.md), and the [release test plan](docs/release-test-plan.html) (open it in a browser to tick off checks).
+## Documentation
+
+- [CONTRIBUTING](.github/CONTRIBUTING.md) — how to send a change
+- [SECURITY](.github/SECURITY.md) — reporting a vulnerability
+- [Design system](DESIGN.md) — how Kapaat looks and behaves
+- [Roadmap](ROADMAP.md) — what's planned
+- [Release test plan](docs/release-test-plan.html) — open in a browser to tick off checks
+- [Migrating from v1](docs/migration-from-v1.md) · [v2.0.0 release notes](docs/release-notes/v2.0.0.md)
+- [Google Sheets webhook setup](docs/sheets-webhook.md)
 
 ## License
 
