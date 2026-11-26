@@ -41,10 +41,56 @@ Kapaat (ਕਪਾਟ / कपाट — *cupboard*) is how you stop forgetting w
 | **Simple sign-in** | A 6-digit code by email, plus optional passkeys and SSO (Authentik, Keycloak, Google…). |
 | **Google Sheets mirror** | Optional webhook on every change; a copy-paste Apps Script keeps a spreadsheet in sync. |
 
+## Workflows
+
+Live captures from a running Kapaat instance.
+
+**Add an item — manual.** Fill in a name and whatever else you know; everything but the name is optional. Tap the bin field to search and assign a bin in one step.
+
 <p align="center">
-  <img src="docs/screenshots/add-item.png" width="260" alt="Add Item screen in AI from photo mode">
+  <img src="docs/screenshots/add-item-manual.png" width="260" alt="Add Item form filled in manually">
+  <img src="docs/screenshots/bin-picker.png" width="260" alt="Bin picker sheet for assigning an item to a bin">
+</p>
+
+**Add an item — AI from photo.** Switch to AI mode, pick a photo; it's detecting while you wait, then Name/Category/Tags/Notes come back filled in for you to review before saving.
+
+<p align="center">
+  <img src="docs/screenshots/add-item-ai-detecting.png" width="260" alt="Add Item in AI from photo mode while detecting">
+  <img src="docs/screenshots/add-item-ai-result.png" width="260" alt="Add Item in AI from photo mode with fields filled in">
+</p>
+
+**Add a bin.** Name it, place it in a room/zone, and optionally set a code and colour — then print its label right away.
+
+<p align="center">
+  <img src="docs/screenshots/add-bin.png" width="260" alt="Add Bin form">
+</p>
+
+**Item detail — check out, retire.** Every item page shows its bin and location, with one-tap check-out and a retire sheet that asks why (used up, donated, sold, thrown away, lost) instead of deleting outright.
+
+<p align="center">
+  <img src="docs/screenshots/item-detail.png" width="260" alt="Item detail page with Check out, Move, Retire actions">
+  <img src="docs/screenshots/check-out.png" width="260" alt="Check-out sheet with optional due date and note">
+  <img src="docs/screenshots/retire.png" width="260" alt="Retire sheet with reason options">
+</p>
+
+**Bin detail and bulk move.** A bin page lists its contents; from Home, Select lets you tick several items and move them all at once.
+
+<p align="center">
+  <img src="docs/screenshots/bin-detail.png" width="260" alt="Bin detail page listing its contents">
+  <img src="docs/screenshots/bulk-select.png" width="260" alt="Home screen in bulk-select mode with a selection bar">
+</p>
+
+**Scan.** Open, move-into-bin and check-in modes, driven by the phone's camera reading a bin or item label.
+
+<p align="center">
+  <img src="docs/screenshots/scan.png" width="260" alt="Scan screen with Open / Move into bin / Check in modes">
+</p>
+
+**Print labels.** Pick a size — including the Avery 8163 sheet above — and which bins to print.
+
+<p align="center">
   <img src="docs/screenshots/labels.png" width="260" alt="Print labels screen">
-  <img src="docs/screenshots/places.png" width="260" alt="Places screen">
+  <img src="docs/screenshots/places.png" width="260" alt="Places screen listing rooms and zones">
 </p>
 
 ## Before you set this up
