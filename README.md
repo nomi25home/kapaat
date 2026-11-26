@@ -11,10 +11,10 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/backend-FastAPI-0ea5e9.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/frontend-React%20PWA-0ea5e9.svg" alt="React PWA">
-  <img src="https://img.shields.io/badge/self--hosted-Docker-0ea5e9.svg" alt="Self-hosted">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-08748F.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/backend-FastAPI-08748F.svg" alt="FastAPI">
+  <img src="https://img.shields.io/badge/frontend-React%20PWA-08748F.svg" alt="React PWA">
+  <img src="https://img.shields.io/badge/self--hosted-Docker-08748F.svg" alt="Self-hosted">
 </p>
 
 <p align="center">
